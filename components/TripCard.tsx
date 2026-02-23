@@ -32,10 +32,25 @@ export default function TripCard({
 
   return (
     <View style={styles.card}>
-      <View style={styles.route}>
-        <Text style={styles.city}>{trip.origin}</Text>
-        <Ionicons name="arrow-forward" size={18} color="#94A3B8" />
-        <Text style={styles.city}>{trip.destination}</Text>
+      <View style={styles.routePanel}>
+        <View style={styles.routeRow}>
+          <View style={[styles.routeDot, { backgroundColor: "#2563EB" }]} />
+          <View style={styles.routeTextWrap}>
+            <Text style={styles.routeLabel}>Depart</Text>
+            <Text style={styles.routeAddress} numberOfLines={2} ellipsizeMode="tail">
+              {trip.origin}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.routeRow}>
+          <View style={[styles.routeDot, { backgroundColor: "#16A34A" }]} />
+          <View style={styles.routeTextWrap}>
+            <Text style={styles.routeLabel}>Arrivee</Text>
+            <Text style={styles.routeAddress} numberOfLines={2} ellipsizeMode="tail">
+              {trip.destination}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.details}>
@@ -97,20 +112,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-  route: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  routePanel: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 10,
     marginBottom: 12,
   },
-  city: {
-    fontSize: 17,
+  routeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  routeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 5,
+  },
+  routeTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  routeLabel: {
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  routeAddress: {
+    fontSize: 14,
     fontWeight: "600",
     color: "#1E293B",
+    flexShrink: 1,
   },
   details: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 12,
     marginBottom: 8,
   },
@@ -148,6 +190,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
@@ -161,6 +204,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     fontWeight: "500",
+    maxWidth: 150,
   },
   actionsRow: {
     marginTop: 10,

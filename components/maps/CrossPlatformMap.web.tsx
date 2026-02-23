@@ -2,6 +2,27 @@ import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import type { CrossPlatformMapProps } from "./CrossPlatformMap.types";
 
+function createParcelPinElement(color: string) {
+  const el = document.createElement("div");
+  el.style.width = "26px";
+  el.style.height = "26px";
+  el.style.borderRadius = "13px";
+  el.style.display = "flex";
+  el.style.alignItems = "center";
+  el.style.justifyContent = "center";
+  el.style.background = color;
+  el.style.border = "2px solid #FFFFFF";
+  el.style.boxShadow = "0 2px 8px rgba(15, 23, 42, 0.25)";
+  const inner = document.createElement("div");
+  inner.style.width = "10px";
+  inner.style.height = "10px";
+  inner.style.borderRadius = "2px";
+  inner.style.background = "#FFFFFF";
+  inner.style.border = "1px solid rgba(15, 23, 42, 0.25)";
+  el.appendChild(inner);
+  return el;
+}
+
 type WebMap = {
   remove: () => void;
   addControl: (control: unknown) => void;
@@ -12,7 +33,7 @@ type WebMap = {
   addLayer: (layer: unknown) => void;
 };
 
-export function CrossPlatformMap({ pins, paths = [], height = 260 }: CrossPlatformMapProps) {
+export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }: CrossPlatformMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<WebMap | null>(null);
 
@@ -47,10 +68,17 @@ export function CrossPlatformMap({ pins, paths = [], height = 260 }: CrossPlatfo
       const map = mapRef.current as unknown as any;
       map.on("load", () => {
         pins.forEach((pin: any) => {
-          const marker = new maplibre.Marker({ color: pin.color ?? "#1D4ED8" })
+          const marker = new maplibre.Marker(
+            pin.kind === "parcel"
+              ? { element: createParcelPinElement(pin.color ?? "#EA580C") }
+              : { color: pin.color ?? "#1D4ED8" }
+          )
             .setLngLat([pin.longitude, pin.latitude])
             .setPopup(new maplibre.Popup().setText(pin.title ?? "Point"));
           marker.addTo(map);
+          if (onPinPress) {
+            marker.getElement().addEventListener("click", () => onPinPress(pin.id));
+          }
         });
 
         paths.forEach((path: any) => {
@@ -102,7 +130,7 @@ export function CrossPlatformMap({ pins, paths = [], height = 260 }: CrossPlatfo
         mapRef.current = null;
       }
     };
-  }, [pins, paths]);
+  }, [onPinPress, pins, paths]);
 
   return <View style={[styles.box, { height }]}>{<div ref={containerRef} style={{ width: "100%", height: "100%" }} />}</View>;
 }

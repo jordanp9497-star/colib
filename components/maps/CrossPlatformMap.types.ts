@@ -5,11 +5,12 @@ export type MapPin = {
   title?: string;
   description?: string;
   color?: string;
+  kind?: "trip-origin" | "trip-destination" | "parcel";
 };
 
 export type MapPath = {
   id: string;
-  coordinates: Array<{ latitude: number; longitude: number }>;
+  coordinates: { latitude: number; longitude: number }[];
   color?: string;
   width?: number;
 };
@@ -18,4 +19,5 @@ export type CrossPlatformMapProps = {
   pins: MapPin[];
   paths?: MapPath[];
   height?: number;
+  onPinPress?: (pinId: string) => void;
 };

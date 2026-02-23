@@ -219,3 +219,51 @@ export const recomputeForTrip = mutation({
     return { count };
   },
 });
+
+export const reserveFromTripOwner = mutation({
+  args: {
+    matchId: v.id("matches"),
+    tripOwnerVisitorId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const match = await ctx.db.get(args.matchId);
+    if (!match) throw new Error("Match introuvable");
+
+    const trip = await ctx.db.get(match.tripId);
+    if (!trip) throw new Error("Trajet introuvable");
+    if (trip.ownerVisitorId !== args.tripOwnerVisitorId) {
+      throw new Error("Non autorise");
+    }
+
+    const parcel = await ctx.db.get(match.parcelId);
+    if (!parcel) throw new Error("Colis introuvable");
+
+    const now = Date.now();
+    await ctx.db.patch(match._id, {
+      status: "requested",
+      updatedAt: now,
+    });
+
+    const siblingMatches = await ctx.db
+      .query("matches")
+      .withIndex("by_parcel", (q) => q.eq("parcelId", match.parcelId))
+      .collect();
+
+    for (const sibling of siblingMatches) {
+      if (sibling._id === match._id) continue;
+      if (sibling.status !== "candidate") continue;
+      await ctx.db.patch(sibling._id, {
+        status: "cancelled",
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(parcel._id, {
+      status: "booked",
+      matchedTripId: trip._id,
+      updatedAt: now,
+    });
+
+    return { success: true };
+  },
+});

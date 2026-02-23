@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
+import { router } from "expo-router";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import type { MapPin } from "@/components/maps/CrossPlatformMap.types";
 import { decodePolyline } from "@/utils/polyline";
 
 export default function MapScreen() {
@@ -17,7 +19,7 @@ export default function MapScreen() {
   const getRoute = useAction(api.maps.getRoute);
 
   const [selectedDetour, setSelectedDetour] = useState(20);
-  const [routeCoordinates, setRouteCoordinates] = useState<Array<{ latitude: number; longitude: number }>>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
 
   const activeTrip = useMemo(() => myTrips?.find((t) => t.status === "published"), [myTrips]);
   const matches = useQuery(
@@ -25,8 +27,15 @@ export default function MapScreen() {
     activeTrip ? { tripId: activeTrip._id } : "skip"
   );
 
-  const filteredMatches = matches?.filter((match) => match.detourMinutes <= selectedDetour) ?? [];
+  const filteredMatches = useMemo(
+    () => matches?.filter((match) => match.detourMinutes <= selectedDetour) ?? [],
+    [matches, selectedDetour]
+  );
   const mapHeight = Math.min(Math.max(300, Math.round(screenHeight * 0.52)), 420);
+  const parcelById = useMemo(() => {
+    if (!parcels) return new Map<string, any>();
+    return new Map(parcels.map((parcel) => [String(parcel._id), parcel]));
+  }, [parcels]);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,26 +93,19 @@ export default function MapScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    activeTrip?._id,
-    activeTrip?.originAddress.lat,
-    activeTrip?.originAddress.lng,
-    activeTrip?.destinationAddress.lat,
-    activeTrip?.destinationAddress.lng,
-    getRoute,
-  ]);
+  }, [activeTrip, getRoute]);
 
   const mapPins = useMemo(() => {
-    if (!parcels) return [] as Array<{ id: string; latitude: number; longitude: number; title: string; color: string }>;
-    const matchedIds = new Set(filteredMatches.map((m) => m.parcelId));
-    const pins = parcels
-      .filter((parcel) => matchedIds.has(parcel._id))
+    const matchedIds = new Set(filteredMatches.map((m) => String(m.parcelId)));
+    const pins: MapPin[] = (parcels ?? [])
+      .filter((parcel) => matchedIds.has(String(parcel._id)))
       .map((parcel) => ({
         id: `parcel-${parcel._id}`,
         latitude: parcel.originAddress.lat,
         longitude: parcel.originAddress.lng,
-        title: `Colis: ${parcel.originAddress.city ?? parcel.origin}`,
-        color: "#DC2626",
+        title: `Colis a recuperer: ${parcel.originAddress.city ?? parcel.origin}`,
+        color: "#EA580C",
+        kind: "parcel" as const,
       }));
 
     if (activeTrip) {
@@ -113,6 +115,7 @@ export default function MapScreen() {
         longitude: activeTrip.originAddress.lng,
         title: "Depart trajet",
         color: "#1D4ED8",
+        kind: "trip-origin" as const,
       });
       pins.unshift({
         id: `trip-destination-${activeTrip._id}`,
@@ -120,11 +123,29 @@ export default function MapScreen() {
         longitude: activeTrip.destinationAddress.lng,
         title: "Arrivee trajet",
         color: "#16A34A",
+        kind: "trip-destination" as const,
       });
     }
 
     return pins;
   }, [activeTrip, filteredMatches, parcels]);
+
+  const matchesWithParcel = useMemo(
+    () =>
+      filteredMatches
+        .map((match) => ({ match, parcel: parcelById.get(String(match.parcelId)) }))
+        .filter((entry) => Boolean(entry.parcel)),
+    [filteredMatches, parcelById]
+  );
+
+  const openParcelDetails = (parcelId: string) => {
+    router.push(`/parcel/${parcelId}` as any);
+  };
+
+  const handlePinPress = (pinId: string) => {
+    if (!pinId.startsWith("parcel-")) return;
+    openParcelDetails(pinId.replace("parcel-", ""));
+  };
 
   const mapPaths = useMemo(() => {
     if (!activeTrip || routeCoordinates.length < 2) return [];
@@ -167,30 +188,35 @@ export default function MapScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Carte de matching</Text>
       <DetourFilter value={selectedDetour} onChange={handleDetourChange} />
 
       <View style={styles.mapWrap}>
-        <CrossPlatformMap pins={mapPins} paths={mapPaths} height={mapHeight} />
+        <CrossPlatformMap pins={mapPins} paths={mapPaths} height={mapHeight} onPinPress={handlePinPress} />
       </View>
 
       <View style={styles.overlayPanel}>
         <Text style={styles.overlayTitle}>{filteredMatches.length} colis compatibles</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.overlayList}>
-          {filteredMatches.slice(0, 8).map((item) => (
-            <View key={item._id} style={styles.card}>
-              <Text style={styles.cardTitle}>Score {item.score}</Text>
-              <Text style={styles.cardLine}>{item.detourMinutes} min</Text>
-              <Text style={styles.price}>{item.pricingEstimate.totalAmount} EUR</Text>
-            </View>
+        <View style={styles.overlayList}>
+          {matchesWithParcel.map(({ match, parcel }) => (
+            <TouchableOpacity key={match._id} style={styles.card} activeOpacity={0.85} onPress={() => openParcelDetails(String(parcel._id))}>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {parcel.originAddress.city ?? "Point de recuperation"}
+              </Text>
+              <Text style={styles.cardLine} numberOfLines={1}>
+                {parcel.origin}
+              </Text>
+              <Text style={styles.cardMeta}>Detour {match.detourMinutes} min - Score {match.score}</Text>
+              <Text style={styles.price}>{match.pricingEstimate.totalAmount} EUR</Text>
+            </TouchableOpacity>
           ))}
           {filteredMatches.length === 0 ? (
             <Text style={styles.emptyText}>Aucun colis compatible pour ce seuil.</Text>
           ) : null}
-        </ScrollView>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -198,8 +224,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
+  },
+  content: {
     padding: 16,
     paddingTop: 60,
+    paddingBottom: 28,
   },
   title: {
     fontSize: 22,
@@ -217,11 +246,12 @@ const styles = StyleSheet.create({
   overlayTitle: {
     color: "#0F172A",
     fontWeight: "700",
+    fontSize: 15,
     marginBottom: 6,
   },
   overlayList: {
     gap: 8,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -229,17 +259,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
-    minWidth: 140,
+    width: "100%",
   },
   cardTitle: {
     fontSize: 14,
     fontWeight: "700",
     color: "#0F172A",
-    marginBottom: 6,
+    marginBottom: 3,
   },
   cardLine: {
     fontSize: 13,
     color: "#475569",
+  },
+  cardMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#64748B",
   },
   price: {
     marginTop: 6,
