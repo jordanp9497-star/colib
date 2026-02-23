@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx convex init:*)",
+      "Bash(npx convex dev:*)",
+      "Bash(npx convex codegen:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(npx expo export:*)"
+    ]
+  }
+}
