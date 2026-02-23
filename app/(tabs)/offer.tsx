@@ -1,89 +1,146 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
-import { Ionicons } from "@expo/vector-icons";
-
-const SPACE_OPTIONS = [
-  { value: "petit" as const, label: "Petit", desc: "Enveloppe" },
-  { value: "moyen" as const, label: "Moyen", desc: "Sac a dos" },
-  { value: "grand" as const, label: "Grand", desc: "Valise" },
-];
+import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
+import type { GeocodedAddress } from "@/packages/shared/maps";
+import { buildDayWindowTimestamps, TimeWindowInput } from "@/components/forms/TimeWindowInput";
 
 export default function OfferScreen() {
   const { userId, userName, isLoggedIn } = useUser();
-  const createTrip = useMutation(api.trips.create);
+  const params = useLocalSearchParams<{ tripId?: string }>();
+  const tripId = typeof params.tripId === "string" ? params.tripId : undefined;
+  const isEditMode = Boolean(tripId);
 
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [date, setDate] = useState("");
-  const [availableSpace, setAvailableSpace] = useState<
-    "petit" | "moyen" | "grand"
-  >("moyen");
-  const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
-  const [phone, setPhone] = useState("");
+  const createTrip = useMutation(api.trips.create);
+  const updateTrip = useMutation(api.trips.update);
+  const recomputeForTrip = useMutation(api.matches.recomputeForTrip);
+  const tripToEdit = useQuery(api.trips.getById, tripId ? { tripId: tripId as any } : "skip");
+
+  const [originAddress, setOriginAddress] = useState<GeocodedAddress | null>(null);
+  const [destinationAddress, setDestinationAddress] = useState<GeocodedAddress | null>(null);
+  const [availableSpace, setAvailableSpace] = useState<"petit" | "moyen" | "grand">("moyen");
+  const [maxWeightKg, setMaxWeightKg] = useState("20");
+  const [maxVolumeDm3, setMaxVolumeDm3] = useState("60");
+  const [basePrice, setBasePrice] = useState("15");
+  const [tripDate, setTripDate] = useState("");
+  const [maxDetourMinutes, setMaxDetourMinutes] = useState(20);
+
+  const canEditTrip = useMemo(() => {
+    if (!tripToEdit) return false;
+    return tripToEdit.ownerVisitorId === userId;
+  }, [tripToEdit, userId]);
+
+  useEffect(() => {
+    if (!tripToEdit || !canEditTrip) return;
+    setOriginAddress(tripToEdit.originAddress as GeocodedAddress);
+    setDestinationAddress(tripToEdit.destinationAddress as GeocodedAddress);
+    setAvailableSpace(tripToEdit.availableSpace);
+    setMaxWeightKg(String(tripToEdit.maxWeightKg));
+    setMaxVolumeDm3(String(tripToEdit.maxVolumeDm3));
+    setBasePrice(String(tripToEdit.price));
+    setMaxDetourMinutes(tripToEdit.maxDetourMinutes);
+
+    const start = new Date(tripToEdit.windowStartTs);
+    const day = String(start.getDate()).padStart(2, "0");
+    const month = String(start.getMonth() + 1).padStart(2, "0");
+    const year = start.getFullYear();
+    setTripDate(`${day}/${month}/${year}`);
+  }, [tripToEdit, canEditTrip]);
 
   if (!isLoggedIn) {
     return (
-      <View style={styles.authContainer}>
-        <Ionicons name="person-circle-outline" size={64} color="#94A3B8" />
-        <Text style={styles.authTitle}>Identifiez-vous</Text>
-        <Text style={styles.authText}>
-          Rendez-vous dans l'onglet Profil pour entrer votre nom avant de
-          publier une annonce.
-        </Text>
+      <View style={styles.center}>
+        <Text style={styles.title}>Identifiez-vous pour proposer un trajet</Text>
       </View>
     );
   }
 
-  const handleSubmit = async () => {
-    if (!origin.trim() || !destination.trim() || !date.trim()) {
+  if (isEditMode && tripToEdit === undefined) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.title}>Chargement de votre annonce...</Text>
+      </View>
+    );
+  }
+
+  if (isEditMode && tripToEdit && !canEditTrip) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.title}>Cette annonce ne vous appartient pas.</Text>
+      </View>
+    );
+  }
+
+  const publishTrip = async () => {
+    if (!originAddress || !destinationAddress) {
+      Alert.alert("Adresses requises", "Selectionnez depart et arrivee.");
+      return;
+    }
+
+    const timeWindow = buildDayWindowTimestamps(tripDate);
+    if (!timeWindow) {
       Alert.alert(
-        "Champs requis",
-        "Veuillez remplir la ville de depart, d'arrivee et la date."
+        "Date invalide",
+        "Choisissez la date du trajet au format JJ/MM/AAAA."
       );
       return;
     }
-    const priceNum = parseFloat(price);
-    if (isNaN(priceNum) || priceNum < 0) {
-      Alert.alert("Prix invalide", "Veuillez entrer un prix valide.");
+
+    const price = Number(basePrice);
+    const maxWeight = Number(maxWeightKg);
+    const maxVolume = Number(maxVolumeDm3);
+    if (!Number.isFinite(price) || !Number.isFinite(maxWeight) || !Number.isFinite(maxVolume)) {
+      Alert.alert("Valeurs invalides", "Renseignez prix, poids max et volume max valides.");
       return;
     }
 
     try {
-      await createTrip({
-        userId,
-        userName,
-        origin: origin.trim(),
-        destination: destination.trim(),
-        date: date.trim(),
+      const payload = {
+        ownerVisitorId: userId,
+        originAddress,
+        destinationAddress,
+        windowStartTs: timeWindow.windowStartTs,
+        windowEndTs: timeWindow.windowEndTs,
         availableSpace,
-        price: priceNum,
-        description: description.trim() || undefined,
-        phone: phone.trim() || undefined,
-      });
-      Alert.alert("Publie !", "Votre trajet a ete publie.");
-      setOrigin("");
-      setDestination("");
-      setDate("");
-      setAvailableSpace("moyen");
-      setPrice("");
-      setDescription("");
-      setPhone("");
+        maxWeightKg: maxWeight,
+        maxVolumeDm3: maxVolume,
+        price,
+        maxDetourMinutes,
+        description: undefined,
+        phone: undefined,
+      };
+
+      const currentTripId = isEditMode
+        ? (tripId as any)
+        : await createTrip({ ...payload, userName });
+
+      if (isEditMode) {
+        await updateTrip({ ...payload, tripId: tripId as any });
+      }
+
+      await recomputeForTrip({ tripId: currentTripId });
+      if (isEditMode) {
+        Alert.alert("Annonce mise a jour", "Votre annonce trajet a ete modifiee.");
+        router.replace("/(tabs)/profile");
+      } else {
+        Alert.alert("Trajet publie", "Les colis compatibles sont visibles dans l'onglet Carte.");
+      }
     } catch {
-      Alert.alert("Erreur", "Une erreur est survenue. Reessayez.");
+      Alert.alert("Erreur", isEditMode ? "Impossible de modifier le trajet." : "Impossible de publier le trajet.");
     }
   };
 
@@ -92,110 +149,74 @@ export default function OfferScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Proposer un trajet</Text>
-          <Text style={styles.headerSubtitle}>
-            Rentabilisez votre trajet en transportant des colis
-          </Text>
-        </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.header}>{isEditMode ? "Modifier mon trajet" : "Publier un trajet"}</Text>
 
-        <Text style={styles.label}>Ville de depart *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Paris"
-          placeholderTextColor="#94A3B8"
-          value={origin}
-          onChangeText={setOrigin}
+        <AddressAutocompleteInput
+          label="Adresse depart"
+          placeholder="Saisissez puis choisissez"
+          value={originAddress}
+          onChange={setOriginAddress}
+        />
+        <AddressAutocompleteInput
+          label="Adresse arrivee"
+          placeholder="Saisissez puis choisissez"
+          value={destinationAddress}
+          onChange={setDestinationAddress}
         />
 
-        <Text style={styles.label}>Ville d'arrivee *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Marseille"
-          placeholderTextColor="#94A3B8"
-          value={destination}
-          onChangeText={setDestination}
-        />
-
-        <Text style={styles.label}>Date du trajet *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="JJ/MM/AAAA"
-          placeholderTextColor="#94A3B8"
-          value={date}
-          onChangeText={setDate}
-        />
-
-        <Text style={styles.label}>Espace disponible *</Text>
-        <View style={styles.segmentContainer}>
-          {SPACE_OPTIONS.map((opt) => (
+        <Text style={styles.label}>Espace disponible</Text>
+        <View style={styles.row}>
+          {(["petit", "moyen", "grand"] as const).map((value) => (
             <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.segmentButton,
-                availableSpace === opt.value && styles.segmentButtonActive,
-              ]}
-              onPress={() => setAvailableSpace(opt.value)}
+              key={value}
+              style={[styles.chip, value === availableSpace && styles.chipActive]}
+              onPress={() => setAvailableSpace(value)}
             >
-              <Text
-                style={[
-                  styles.segmentLabel,
-                  availableSpace === opt.value && styles.segmentLabelActive,
-                ]}
-              >
-                {opt.label}
-              </Text>
-              <Text
-                style={[
-                  styles.segmentDesc,
-                  availableSpace === opt.value && styles.segmentDescActive,
-                ]}
-              >
-                {opt.desc}
+              <Text style={[styles.chipText, value === availableSpace && styles.chipTextActive]}>
+                {value}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={styles.label}>Prix (EUR) *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: 15"
-          placeholderTextColor="#94A3B8"
-          keyboardType="numeric"
-          value={price}
-          onChangeText={setPrice}
+        <Text style={styles.label}>Deviation max conducteur (min)</Text>
+        <View style={styles.row}>
+          {[10, 20, 30].map((minutes) => (
+            <TouchableOpacity
+              key={minutes}
+              style={[styles.chip, maxDetourMinutes === minutes && styles.chipActive]}
+              onPress={() => setMaxDetourMinutes(minutes)}
+            >
+              <Text style={[styles.chipText, maxDetourMinutes === minutes && styles.chipTextActive]}>
+                {minutes}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Poids max (kg)</Text>
+        <TextInput value={maxWeightKg} onChangeText={setMaxWeightKg} style={styles.input} keyboardType="numeric" />
+
+        <Text style={styles.label}>Volume max (dm3)</Text>
+        <TextInput value={maxVolumeDm3} onChangeText={setMaxVolumeDm3} style={styles.input} keyboardType="numeric" />
+
+        <Text style={styles.label}>Prix de base (EUR)</Text>
+        <TextInput value={basePrice} onChangeText={setBasePrice} style={styles.input} keyboardType="numeric" />
+
+        <TimeWindowInput
+          title="Date de votre trajet"
+          subtitle="Le matching se fait sur la journee entiere de ce trajet"
+          dateValue={tripDate}
+          onDateChange={setTripDate}
+          slot="day"
+          onSlotChange={() => {}}
+          showSlots={false}
         />
 
-        <Text style={styles.label}>Description (optionnel)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Informations supplementaires..."
-          placeholderTextColor="#94A3B8"
-          multiline
-          numberOfLines={3}
-          value={description}
-          onChangeText={setDescription}
-        />
-
-        <Text style={styles.label}>Telephone (optionnel)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: 06 12 34 56 78"
-          placeholderTextColor="#94A3B8"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
-
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Ionicons name="car" size={20} color="#FFFFFF" />
-          <Text style={styles.buttonText}>Publier le trajet</Text>
+        <TouchableOpacity style={styles.button} onPress={publishTrip}>
+          <Ionicons name="car" size={18} color="#FFFFFF" />
+          <Text style={styles.buttonText}>{isEditMode ? "Mettre a jour votre annonce" : "Publier et matcher les colis"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -203,115 +224,40 @@ export default function OfferScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  content: {
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    marginTop: 4,
-  },
-  authContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-    backgroundColor: "#F8FAFC",
-  },
-  authTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  authText: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 6,
-    marginTop: 12,
-  },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
+  header: { fontSize: 24, color: "#0F172A", fontWeight: "700", marginBottom: 14 },
+  label: { marginTop: 10, marginBottom: 6, fontSize: 14, fontWeight: "600", color: "#334155" },
   input: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#1E293B",
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
-  segmentContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  segmentButton: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderRadius: 10,
     paddingVertical: 10,
-    alignItems: "center",
+    paddingHorizontal: 12,
   },
-  segmentButtonActive: {
-    backgroundColor: "#6366F1",
-    borderColor: "#6366F1",
+  row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  chip: {
+    borderRadius: 999,
+    borderColor: "#CBD5E1",
+    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
   },
-  segmentLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
-  },
-  segmentLabelActive: {
-    color: "#FFFFFF",
-  },
-  segmentDesc: {
-    fontSize: 11,
-    color: "#94A3B8",
-    marginTop: 2,
-  },
-  segmentDescActive: {
-    color: "#C7D2FE",
-  },
+  chipActive: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
+  chipText: { color: "#334155", fontWeight: "600" },
+  chipTextActive: { color: "#FFFFFF" },
   button: {
-    backgroundColor: "#6366F1",
-    borderRadius: 12,
-    paddingVertical: 14,
+    marginTop: 20,
+    backgroundColor: "#4F46E5",
+    borderRadius: 10,
+    paddingVertical: 13,
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    marginTop: 24,
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  buttonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
+  title: { fontSize: 16, fontWeight: "700", color: "#0F172A", textAlign: "center", paddingHorizontal: 24 },
 });

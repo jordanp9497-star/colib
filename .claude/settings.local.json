@@ -7,7 +7,8 @@
       "Bash(npx convex codegen:*)",
       "Bash(npx tsc:*)",
       "Bash(node -e:*)",
-      "Bash(npx expo export:*)"
+      "Bash(npx expo export:*)",
+      "Bash(npx expo install:*)"
     ]
   }
 }

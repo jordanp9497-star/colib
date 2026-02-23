@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Trip {
@@ -19,7 +19,15 @@ const spaceConfig = {
   grand: { label: "Grand", color: "#6366F1" },
 };
 
-export default function TripCard({ trip }: { trip: Trip }) {
+export default function TripCard({
+  trip,
+  onEdit,
+  onDelete,
+}: {
+  trip: Trip;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const space = spaceConfig[trip.availableSpace];
 
   return (
@@ -61,6 +69,21 @@ export default function TripCard({ trip }: { trip: Trip }) {
           </View>
         ) : null}
       </View>
+
+      {onEdit || onDelete ? (
+        <View style={styles.actionsRow}>
+          {onEdit ? (
+            <TouchableOpacity style={styles.editButton} onPress={onEdit}>
+              <Text style={styles.editButtonText}>Modifier</Text>
+            </TouchableOpacity>
+          ) : null}
+          {onDelete ? (
+            <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+              <Text style={styles.deleteButtonText}>Supprimer</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -138,5 +161,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     fontWeight: "500",
+  },
+  actionsRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  editButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#4F46E5",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+  },
+  editButtonText: {
+    color: "#3730A3",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  deleteButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+  },
+  deleteButtonText: {
+    color: "#B91C1C",
+    fontWeight: "700",
+    fontSize: 13,
   },
 });

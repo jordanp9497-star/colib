@@ -1,140 +1,765 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   Alert,
   ActivityIndicator,
   SectionList,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useQuery } from "convex/react";
+import { Image } from "expo-image";
+import { useQuery, useMutation } from "convex/react";
+import { router } from "expo-router";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { Ionicons } from "@expo/vector-icons";
 import TripCard from "@/components/TripCard";
 import ParcelCard from "@/components/ParcelCard";
+import StarRating from "@/components/profile/StarRating";
+import VerificationBadge from "@/components/profile/VerificationBadge";
+import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
 
 export default function ProfileScreen() {
-  const { userId, userName, setUserInfo, isLoggedIn } = useUser();
-  const [nameInput, setNameInput] = useState(userName);
+  const { userId, isLoggedIn, isLoading, register, user } = useUser();
 
-  const handleSave = () => {
-    if (!nameInput.trim()) {
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#6366F1" />
+      </View>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <RegistrationFlow userId={userId} register={register} />;
+  }
+
+  return <LoggedInProfile userId={userId} user={user!} />;
+}
+
+// ─── INSCRIPTION ────────────────────────────────────────
+
+function RegistrationFlow({
+  userId,
+  register,
+}: {
+  userId: string;
+  register: (name: string, phone?: string) => Promise<void>;
+}) {
+  const [step, setStep] = useState<"name" | "email">("name");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  // Email verification
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [betaCode, setBetaCode] = useState<string | null>(null);
+  const [codeSent, setCodeSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const requestCode = useMutation(api.emailVerification.requestCode);
+  const verifyCode = useMutation(api.emailVerification.verifyCode);
+
+  const handleNameSubmit = async () => {
+    if (!name.trim()) {
       Alert.alert("Nom requis", "Veuillez entrer votre nom.");
       return;
     }
-    setUserInfo(nameInput.trim());
-    Alert.alert("Enregistre", `Bienvenue, ${nameInput.trim()} !`);
+    await register(name, phone || undefined);
+    setStep("email");
   };
 
-  if (!isLoggedIn) {
+  const handleSendCode = async () => {
+    if (!email.trim() || !email.includes("@")) {
+      Alert.alert("Email invalide", "Veuillez entrer un email valide.");
+      return;
+    }
+    try {
+      const result = await requestCode({ visitorId: userId, email: email.trim() });
+      setBetaCode(result.code);
+      setCodeSent(true);
+      Alert.alert(
+        "Code envoye (BETA)",
+        `Votre code de verification est : ${result.code}\n\nEn production, ce code serait envoye par email.`
+      );
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer le code.");
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      Alert.alert("Code incomplet", "Entrez le code a 6 chiffres.");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const result = await verifyCode({
+        visitorId: userId,
+        email: email.trim(),
+        code: verificationCode,
+      });
+      if (result.success) {
+        Alert.alert("Email verifie", "Votre email a ete verifie avec succes !");
+      } else {
+        Alert.alert("Erreur", result.error || "Code invalide.");
+      }
+    } catch {
+      Alert.alert("Erreur", "Verification echouee.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (step === "name") {
     return (
-      <View style={styles.authContainer}>
+      <KeyboardAvoidingView
+        style={styles.authContainer}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.avatarPlaceholder}>
           <Ionicons name="person" size={48} color="#94A3B8" />
         </View>
         <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
         <Text style={styles.authText}>
-          Entrez votre nom pour commencer a publier des trajets et envoyer des
+          Creez votre profil pour commencer a publier des trajets et envoyer des
           colis.
         </Text>
         <TextInput
-          style={styles.nameInput}
+          style={styles.input}
           placeholder="Votre nom"
           placeholderTextColor="#94A3B8"
-          value={nameInput}
-          onChangeText={setNameInput}
+          value={name}
+          onChangeText={setName}
           autoFocus
         />
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Commencer</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Telephone (optionnel)"
+          placeholderTextColor="#94A3B8"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+        <TouchableOpacity style={styles.primaryButton} onPress={handleNameSubmit}>
+          <Text style={styles.primaryButtonText}>Suivant</Text>
         </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
-  return <LoggedInProfile userId={userId} userName={userName} />;
+  // Etape email
+  return (
+    <KeyboardAvoidingView
+      style={styles.authContainer}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.avatarPlaceholder}>
+        <Ionicons name="mail" size={48} color="#6366F1" />
+      </View>
+      <Text style={styles.authTitle}>Verifiez votre email</Text>
+      <Text style={styles.authText}>
+        Ajoutez votre email pour securiser votre compte et recevoir des
+        notifications.
+      </Text>
+
+      {!codeSent ? (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="votre@email.com"
+            placeholderTextColor="#94A3B8"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoFocus
+          />
+          <TouchableOpacity style={styles.primaryButton} onPress={handleSendCode}>
+            <Text style={styles.primaryButtonText}>Envoyer le code</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={styles.codeLabel}>
+            Code envoye a {email}
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Code a 6 chiffres"
+            placeholderTextColor="#94A3B8"
+            value={verificationCode}
+            onChangeText={(t) => setVerificationCode(t.replace(/[^0-9]/g, "").slice(0, 6))}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+          />
+          <TouchableOpacity
+            style={[styles.primaryButton, verifying && styles.disabledButton]}
+            onPress={handleVerifyCode}
+            disabled={verifying}
+          >
+            {verifying ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Verifier</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.resendButton}
+            onPress={() => {
+              setCodeSent(false);
+              setVerificationCode("");
+              setBetaCode(null);
+            }}
+          >
+            <Text style={styles.linkText}>Renvoyer le code</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      <TouchableOpacity style={styles.skipButton}>
+        {/* Skip = on ne fait rien, le user est deja cree */}
+        <Text style={styles.linkText}>Passer cette etape</Text>
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
+  );
 }
+
+// ─── PROFIL CONNECTE ────────────────────────────────────
 
 function LoggedInProfile({
   userId,
-  userName,
+  user,
 }: {
   userId: string;
-  userName: string;
+  user: NonNullable<ReturnType<typeof useUser>["user"]>;
 }) {
   const myTrips = useQuery(api.trips.getByUser, { userId });
   const myParcels = useQuery(api.parcels.getByUser, { userId });
+  const reviews = useQuery(api.reviews.getForUser, { revieweeId: userId });
+  const { logout } = useUser();
 
-  const isLoading = myTrips === undefined || myParcels === undefined;
+  const generateUploadUrl = useMutation(api.users.generateUploadUrl);
+  const saveProfilePhoto = useMutation(api.users.saveProfilePhoto);
+  const saveIdentityDocs = useMutation(api.users.saveIdentityDocuments);
+  const removeTrip = useMutation(api.trips.remove);
+  const removeParcel = useMutation(api.parcels.remove);
+
+  const [uploading, setUploading] = useState(false);
+  const [uploadingId, setUploadingId] = useState(false);
+  const [uploadingCg, setUploadingCg] = useState(false);
+
+  // Email verification (si pas encore fait)
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const requestCode = useMutation(api.emailVerification.requestCode);
+  const verifyCode = useMutation(api.emailVerification.verifyCode);
+
+  const isListLoading = myTrips === undefined || myParcels === undefined;
+
+  const handlePickProfilePhoto = async () => {
+    Alert.alert("Photo de profil", "Comment voulez-vous ajouter votre photo ?", [
+      {
+        text: "Galerie",
+        onPress: async () => {
+          const uri = await pickImage([1, 1]);
+          if (uri) await uploadProfilePhoto(uri);
+        },
+      },
+      {
+        text: "Camera",
+        onPress: async () => {
+          const uri = await takePhoto([1, 1]);
+          if (uri) await uploadProfilePhoto(uri);
+        },
+      },
+      { text: "Annuler", style: "cancel" },
+    ]);
+  };
+
+  const uploadProfilePhoto = async (uri: string) => {
+    setUploading(true);
+    try {
+      const storageId = await uploadToConvex(uri, generateUploadUrl);
+      await saveProfilePhoto({ visitorId: userId, storageId: storageId as any });
+    } catch {
+      Alert.alert("Erreur", "Impossible de sauvegarder la photo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUploadIdCard = async () => {
+    Alert.alert("Piece d'identite", "Comment voulez-vous ajouter votre document ?", [
+      {
+        text: "Galerie",
+        onPress: async () => {
+          const uri = await pickImage([16, 10]);
+          if (uri) await uploadIdCard(uri);
+        },
+      },
+      {
+        text: "Camera",
+        onPress: async () => {
+          const uri = await takePhoto([16, 10]);
+          if (uri) await uploadIdCard(uri);
+        },
+      },
+      { text: "Annuler", style: "cancel" },
+    ]);
+  };
+
+  const uploadIdCard = async (uri: string) => {
+    setUploadingId(true);
+    try {
+      const storageId = await uploadToConvex(uri, generateUploadUrl);
+      await saveIdentityDocs({
+        visitorId: userId,
+        idCardPhotoId: storageId as any,
+        carteGrisePhotoId: user.carteGrisePhotoId as any,
+      });
+      Alert.alert("Envoye", "Votre piece d'identite a ete soumise.");
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer le document.");
+    } finally {
+      setUploadingId(false);
+    }
+  };
+
+  const handleUploadCarteGrise = async () => {
+    Alert.alert("Carte grise", "Comment voulez-vous ajouter votre document ?", [
+      {
+        text: "Galerie",
+        onPress: async () => {
+          const uri = await pickImage([16, 10]);
+          if (uri) await uploadCarteGrise(uri);
+        },
+      },
+      {
+        text: "Camera",
+        onPress: async () => {
+          const uri = await takePhoto([16, 10]);
+          if (uri) await uploadCarteGrise(uri);
+        },
+      },
+      { text: "Annuler", style: "cancel" },
+    ]);
+  };
+
+  const uploadCarteGrise = async (uri: string) => {
+    setUploadingCg(true);
+    try {
+      const storageId = await uploadToConvex(uri, generateUploadUrl);
+      if (!user.idCardPhotoId) {
+        Alert.alert(
+          "Piece d'identite requise",
+          "Veuillez d'abord envoyer votre piece d'identite."
+        );
+        return;
+      }
+      await saveIdentityDocs({
+        visitorId: userId,
+        idCardPhotoId: user.idCardPhotoId as any,
+        carteGrisePhotoId: storageId as any,
+      });
+      Alert.alert("Envoye", "Votre carte grise a ete soumise.");
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer le document.");
+    } finally {
+      setUploadingCg(false);
+    }
+  };
+
+  const handleSendCode = async () => {
+    if (!email.trim() || !email.includes("@")) {
+      Alert.alert("Email invalide", "Veuillez entrer un email valide.");
+      return;
+    }
+    try {
+      const result = await requestCode({ visitorId: userId, email: email.trim() });
+      setCodeSent(true);
+      Alert.alert(
+        "Code envoye (BETA)",
+        `Votre code de verification est : ${result.code}\n\nEn production, ce code serait envoye par email.`
+      );
+    } catch {
+      Alert.alert("Erreur", "Impossible d'envoyer le code.");
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      Alert.alert("Code incomplet", "Entrez le code a 6 chiffres.");
+      return;
+    }
+    setVerifying(true);
+    try {
+      const result = await verifyCode({
+        visitorId: userId,
+        email: email.trim(),
+        code: verificationCode,
+      });
+      if (result.success) {
+        Alert.alert("Email verifie", "Votre email a ete verifie !");
+        setShowEmailForm(false);
+      } else {
+        Alert.alert("Erreur", result.error || "Code invalide.");
+      }
+    } catch {
+      Alert.alert("Erreur", "Verification echouee.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert("Se deconnecter", "Etes-vous sur de vouloir vous deconnecter ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Se deconnecter",
+        style: "destructive",
+        onPress: logout,
+      },
+    ]);
+  };
+
+  const handleEditTrip = (tripId: string) => {
+    router.push({ pathname: "/(tabs)/offer", params: { tripId } });
+  };
+
+  const handleEditParcel = (parcelId: string) => {
+    router.push({ pathname: "/(tabs)/send", params: { parcelId } });
+  };
+
+  const handleDeleteTrip = (tripId: string) => {
+    Alert.alert("Supprimer ce trajet", "Cette annonce sera retiree de la carte. Continuer ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeTrip({ tripId: tripId as any, ownerVisitorId: userId });
+            Alert.alert("Supprime", "Votre annonce trajet a ete retiree.");
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer ce trajet.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteParcel = (parcelId: string) => {
+    Alert.alert("Supprimer ce colis", "Cette annonce sera retiree des matchs. Continuer ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeParcel({ parcelId: parcelId as any, ownerVisitorId: userId });
+            Alert.alert("Supprime", "Votre annonce colis a ete retiree.");
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer ce colis.");
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.profileHeader}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>
-            {userName.charAt(0).toUpperCase()}
-          </Text>
+        <TouchableOpacity onPress={handlePickProfilePhoto} disabled={uploading}>
+          {user.profilePhotoUrl ? (
+            <Image
+              source={{ uri: user.profilePhotoUrl }}
+              style={styles.profilePhoto}
+            />
+          ) : (
+            <View style={styles.avatarCircle}>
+              {uploading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {user.name.charAt(0).toUpperCase()}
+                </Text>
+              )}
+            </View>
+          )}
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={14} color="#FFF" />
+          </View>
+        </TouchableOpacity>
+        <Text style={styles.userName}>{user.name}</Text>
+        <View style={styles.headerBadges}>
+          <StarRating
+            rating={user.averageRating}
+            totalReviews={user.totalReviews}
+            size={14}
+            color="#FDE68A"
+          />
         </View>
-        <Text style={styles.userName}>{userName}</Text>
-        <Text style={styles.userId}>ID: {userId}</Text>
+        <View style={styles.headerBadges}>
+          {user.emailVerified && <VerificationBadge type="email_verified" />}
+          {user.identityVerified === "verified" && (
+            <VerificationBadge type="identity_verified" />
+          )}
+        </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#6366F1" />
-        </View>
-      ) : (
-        <SectionList
-          sections={[
-            {
-              title: `Mes trajets (${myTrips?.length ?? 0})`,
-              data: myTrips ?? [],
-              type: "trip" as const,
-            },
-            {
-              title: `Mes colis (${myParcels?.length ?? 0})`,
-              data: myParcels ?? [],
-              type: "parcel" as const,
-            },
-          ]}
-          keyExtractor={(item) => item._id}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionTitle}>{section.title}</Text>
+      <ScrollView
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollInner}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section Email */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Email</Text>
+          {user.emailVerified && user.email ? (
+            <View style={styles.infoRow}>
+              <Ionicons name="mail" size={18} color="#6366F1" />
+              <Text style={styles.infoText}>{user.email}</Text>
+              <VerificationBadge type="email_verified" />
+            </View>
+          ) : !showEmailForm ? (
+            <TouchableOpacity
+              style={styles.outlineButton}
+              onPress={() => setShowEmailForm(true)}
+            >
+              <Ionicons name="mail-outline" size={18} color="#6366F1" />
+              <Text style={styles.outlineButtonText}>Ajouter un email</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.emailForm}>
+              {!codeSent ? (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="votre@email.com"
+                    placeholderTextColor="#94A3B8"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    style={styles.smallPrimaryButton}
+                    onPress={handleSendCode}
+                  >
+                    <Text style={styles.primaryButtonText}>Envoyer le code</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.codeLabel}>Code envoye a {email}</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Code a 6 chiffres"
+                    placeholderTextColor="#94A3B8"
+                    value={verificationCode}
+                    onChangeText={(t) =>
+                      setVerificationCode(t.replace(/[^0-9]/g, "").slice(0, 6))
+                    }
+                    keyboardType="number-pad"
+                    maxLength={6}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.smallPrimaryButton,
+                      verifying && styles.disabledButton,
+                    ]}
+                    onPress={handleVerifyCode}
+                    disabled={verifying}
+                  >
+                    {verifying ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Verifier</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity onPress={() => setShowEmailForm(false)}>
+                <Text style={styles.linkText}>Annuler</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          renderItem={({ item, section }) =>
-            section.type === "trip" ? (
-              <TripCard trip={item as any} />
+        </View>
+
+        {/* Section Verification d'identite */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>Verification d'identite</Text>
+            <VerificationBadge type="beta" />
+          </View>
+          <Text style={styles.sectionDescription}>
+            Verifiez votre identite pour rassurer les autres utilisateurs.
+            Les transporteurs peuvent aussi ajouter leur carte grise.
+          </Text>
+
+          {user.identityVerified !== "none" && (
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Statut :</Text>
+              <VerificationBadge
+                type={`identity_${user.identityVerified}` as any}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.docButton, uploadingId && styles.disabledButton]}
+            onPress={handleUploadIdCard}
+            disabled={uploadingId}
+          >
+            {uploadingId ? (
+              <ActivityIndicator color="#6366F1" size="small" />
             ) : (
-              <ParcelCard parcel={item as any} />
-            )
-          }
-          renderSectionFooter={({ section }) =>
-            section.data.length === 0 ? (
-              <Text style={styles.emptySection}>
-                {section.type === "trip"
-                  ? "Vous n'avez pas encore propose de trajet"
-                  : "Vous n'avez pas encore envoye de colis"}
+              <>
+                <Ionicons
+                  name={user.idCardPhotoId ? "checkmark-circle" : "id-card-outline"}
+                  size={20}
+                  color={user.idCardPhotoId ? "#22C55E" : "#6366F1"}
+                />
+                <Text style={styles.docButtonText}>
+                  {user.idCardPhotoId
+                    ? "Piece d'identite envoyee"
+                    : "Envoyer piece d'identite"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.docButton, uploadingCg && styles.disabledButton]}
+            onPress={handleUploadCarteGrise}
+            disabled={uploadingCg}
+          >
+            {uploadingCg ? (
+              <ActivityIndicator color="#6366F1" size="small" />
+            ) : (
+              <>
+                <Ionicons
+                  name={user.carteGrisePhotoId ? "checkmark-circle" : "car-outline"}
+                  size={20}
+                  color={user.carteGrisePhotoId ? "#22C55E" : "#6366F1"}
+                />
+                <Text style={styles.docButtonText}>
+                  {user.carteGrisePhotoId
+                    ? "Carte grise envoyee"
+                    : "Envoyer carte grise (transporteur)"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Section Avis */}
+        {reviews && reviews.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              Avis recus ({reviews.length})
+            </Text>
+            {reviews.slice(0, 5).map((review) => (
+              <View key={review._id} style={styles.reviewCard}>
+                <StarRating rating={review.rating} size={12} />
+                {review.comment && (
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                )}
+                <Text style={styles.reviewDate}>
+                  {new Date(review.createdAt).toLocaleDateString("fr-FR")}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Section Mes trajets / Mes colis */}
+        {isListLoading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color="#6366F1" />
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>
+                Mes trajets ({myTrips?.length ?? 0})
               </Text>
-            ) : null
-          }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-        />
-      )}
+              {myTrips && myTrips.length > 0 ? (
+                myTrips.map((trip) => (
+                  <TripCard
+                    key={trip._id}
+                    trip={trip as any}
+                    onEdit={() => handleEditTrip(String(trip._id))}
+                    onDelete={() => handleDeleteTrip(String(trip._id))}
+                  />
+                ))
+              ) : (
+                <Text style={styles.emptySection}>
+                  Vous n'avez pas encore propose de trajet
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>
+                Mes colis ({myParcels?.length ?? 0})
+              </Text>
+              {myParcels && myParcels.length > 0 ? (
+                myParcels.map((parcel) => (
+                  <ParcelCard
+                    key={parcel._id}
+                    parcel={parcel as any}
+                    onEdit={() => handleEditParcel(String(parcel._id))}
+                    onDelete={() => handleDeleteParcel(String(parcel._id))}
+                  />
+                ))
+              ) : (
+                <Text style={styles.emptySection}>
+                  Vous n'avez pas encore envoye de colis
+                </Text>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Deconnexion */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Text style={styles.logoutText}>Se deconnecter</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
+
+// ─── STYLES ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Auth / Registration
   authContainer: {
     flex: 1,
     justifyContent: "center",
@@ -164,7 +789,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 24,
   },
-  nameInput: {
+
+  // Inputs
+  input: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     borderWidth: 1,
@@ -174,73 +801,238 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1E293B",
     width: "100%",
+    marginBottom: 12,
+  },
+  codeLabel: {
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 8,
     textAlign: "center",
   },
-  saveButton: {
+
+  // Buttons
+  primaryButton: {
     backgroundColor: "#6366F1",
     borderRadius: 12,
     paddingVertical: 14,
     width: "100%",
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 4,
   },
-  saveButtonText: {
+  primaryButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },
+  smallPrimaryButton: {
+    backgroundColor: "#6366F1",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  skipButton: {
+    marginTop: 20,
+  },
+  resendButton: {
+    marginTop: 8,
+  },
+  linkText: {
+    color: "#6366F1",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  outlineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#6366F1",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderStyle: "dashed",
+  },
+  outlineButtonText: {
+    color: "#6366F1",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  // Profile Header
   profileHeader: {
     alignItems: "center",
     paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: "#6366F1",
   },
+  profilePhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
   avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "#4F46E5",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
     borderWidth: 3,
     borderColor: "#FFFFFF",
   },
   avatarText: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#1E293B",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   userName: {
     fontSize: 20,
     fontWeight: "600",
     color: "#FFFFFF",
+    marginTop: 10,
   },
-  userId: {
-    fontSize: 12,
-    color: "#C7D2FE",
-    marginTop: 4,
+  headerBadges: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 6,
   },
-  center: {
+
+  // Scroll
+  scrollContent: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
-  sectionTitle: {
+  scrollInner: {
+    padding: 20,
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  sectionLabel: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1E293B",
-    marginTop: 20,
+    marginBottom: 10,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
     marginBottom: 12,
   },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 15,
+    color: "#1E293B",
+    flex: 1,
+  },
+
+  // Email form
+  emailForm: {
+    gap: 4,
+  },
+
+  // Identity docs
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: "#64748B",
+  },
+  docButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  docButtonText: {
+    fontSize: 14,
+    color: "#1E293B",
+    fontWeight: "500",
+  },
+
+  // Reviews
+  reviewCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  reviewComment: {
+    fontSize: 13,
+    color: "#1E293B",
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  reviewDate: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginTop: 4,
+  },
+
+  // Trips / Parcels
   emptySection: {
     fontSize: 14,
     color: "#94A3B8",
     fontStyle: "italic",
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  listContent: {
-    padding: 20,
-    paddingBottom: 40,
+
+  // Logout
+  logoutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  logoutText: {
+    color: "#EF4444",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

@@ -8,8 +8,15 @@
  * @module
  */
 
+import type * as emailVerification from "../emailVerification.js";
+import type * as lib_geo from "../lib/geo.js";
+import type * as lib_matching from "../lib/matching.js";
+import type * as maps from "../maps.js";
+import type * as matches from "../matches.js";
 import type * as parcels from "../parcels.js";
+import type * as reviews from "../reviews.js";
 import type * as trips from "../trips.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +25,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  emailVerification: typeof emailVerification;
+  "lib/geo": typeof lib_geo;
+  "lib/matching": typeof lib_matching;
+  maps: typeof maps;
+  matches: typeof matches;
   parcels: typeof parcels;
+  reviews: typeof reviews;
   trips: typeof trips;
+  users: typeof users;
 }>;
 
 /**

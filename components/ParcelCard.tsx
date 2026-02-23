@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface Parcel {
@@ -10,7 +10,15 @@ interface Parcel {
   weight: number;
   description: string;
   phone?: string;
-  status: "pending" | "matched" | "delivered";
+  status:
+    | "draft"
+    | "pending"
+    | "published"
+    | "matched"
+    | "booked"
+    | "completed"
+    | "delivered"
+    | "cancelled";
 }
 
 const sizeConfig = {
@@ -20,14 +28,27 @@ const sizeConfig = {
 };
 
 const statusConfig = {
+  draft: { label: "Brouillon", color: "#94A3B8", icon: "document-outline" as const },
   pending: { label: "En attente", color: "#F59E0B", icon: "time-outline" as const },
+  published: { label: "Publie", color: "#2563EB", icon: "radio-outline" as const },
   matched: { label: "Pris en charge", color: "#22C55E", icon: "checkmark-circle-outline" as const },
+  booked: { label: "Reserve", color: "#0EA5E9", icon: "bookmark-outline" as const },
+  completed: { label: "Termine", color: "#6366F1", icon: "checkmark-done-outline" as const },
   delivered: { label: "Livre", color: "#6366F1", icon: "cube" as const },
+  cancelled: { label: "Annule", color: "#EF4444", icon: "close-circle-outline" as const },
 };
 
-export default function ParcelCard({ parcel }: { parcel: Parcel }) {
+export default function ParcelCard({
+  parcel,
+  onEdit,
+  onDelete,
+}: {
+  parcel: Parcel;
+  onEdit?: () => void;
+  onDelete?: () => void;
+}) {
   const size = sizeConfig[parcel.size];
-  const status = statusConfig[parcel.status];
+  const status = statusConfig[parcel.status] ?? statusConfig.published;
 
   return (
     <View style={styles.card}>
@@ -73,6 +94,21 @@ export default function ParcelCard({ parcel }: { parcel: Parcel }) {
           </View>
         ) : null}
       </View>
+
+      {onEdit || onDelete ? (
+        <View style={styles.actionsRow}>
+          {onEdit ? (
+            <TouchableOpacity style={styles.editButton} onPress={onEdit}>
+              <Text style={styles.editButtonText}>Modifier</Text>
+            </TouchableOpacity>
+          ) : null}
+          {onDelete ? (
+            <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
+              <Text style={styles.deleteButtonText}>Supprimer</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -162,5 +198,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     fontWeight: "500",
+  },
+  actionsRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  editButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#4F46E5",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+  },
+  editButtonText: {
+    color: "#3730A3",
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  deleteButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+  },
+  deleteButtonText: {
+    color: "#B91C1C",
+    fontWeight: "700",
+    fontSize: 13,
   },
 });
