@@ -9,6 +9,24 @@ import type {
 } from "../packages/shared/maps";
 import { haversineKm } from "./lib/geo";
 
+function shortLabelFromParts(street: string | undefined, postalCode: string | undefined, city: string | undefined, fallback: string) {
+  const streetPart = street?.trim();
+  const cityPart = [postalCode, city].filter(Boolean).join(" ").trim();
+  if (streetPart && cityPart) return `${streetPart}, ${cityPart}`;
+  if (streetPart) return streetPart;
+  if (cityPart) return cityPart;
+  return fallback;
+}
+
+function trimSecondary(secondaryText: string | undefined) {
+  if (!secondaryText) return undefined;
+  const chunks = secondaryText
+    .split(",")
+    .map((it) => it.trim())
+    .filter(Boolean);
+  return chunks.slice(0, 2).join(", ");
+}
+
 const MAPS_PROVIDER = process.env.MAPS_PROVIDER ?? "mock";
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -63,9 +81,10 @@ class MockMapsProvider implements MapsProvider {
   }
 
   async geocodePlace(placeId: string): Promise<GeocodedAddress | null> {
+    const street = placeId.replace(/^mock_/, "").replaceAll("_", " ");
     return {
       placeId,
-      label: placeId.replace(/^mock_/, "").replaceAll("_", " "),
+      label: shortLabelFromParts(street, "75001", "Paris", street),
       city: "Paris",
       countryCode: "FR",
       postalCode: "75001",
@@ -111,12 +130,16 @@ class GoogleMapsProvider implements MapsProvider {
       throw new Error(json.error_message ?? `Google autocomplete status ${json.status}`);
     }
 
-    return (json.predictions ?? []).map((prediction) => ({
-      placeId: prediction.place_id,
-      label: prediction.description,
-      mainText: prediction.structured_formatting?.main_text ?? prediction.description,
-      secondaryText: prediction.structured_formatting?.secondary_text,
-    }));
+    return (json.predictions ?? []).map((prediction) => {
+      const mainText = prediction.structured_formatting?.main_text ?? prediction.description;
+      const secondaryText = trimSecondary(prediction.structured_formatting?.secondary_text);
+      return {
+        placeId: prediction.place_id,
+        label: prediction.description,
+        mainText,
+        secondaryText,
+      };
+    });
   }
 
   async geocodePlace(placeId: string): Promise<GeocodedAddress | null> {
@@ -143,13 +166,20 @@ class GoogleMapsProvider implements MapsProvider {
       return null;
     }
 
-    const city = json.result.address_components?.find((it) => it.types.includes("locality"))?.long_name;
+    const city =
+      json.result.address_components?.find((it) => it.types.includes("locality"))?.long_name ??
+      json.result.address_components?.find((it) => it.types.includes("postal_town"))?.long_name;
     const postalCode = json.result.address_components?.find((it) => it.types.includes("postal_code"))?.long_name;
     const countryCode = json.result.address_components?.find((it) => it.types.includes("country"))?.short_name;
+    const streetNumber = json.result.address_components?.find((it) => it.types.includes("street_number"))?.long_name;
+    const route = json.result.address_components?.find((it) => it.types.includes("route"))?.long_name;
+    const formattedStreet = [streetNumber, route].filter(Boolean).join(" ").trim();
+    const fallbackStreet = json.result.formatted_address.split(",")[0]?.trim();
+    const label = shortLabelFromParts(formattedStreet || fallbackStreet, postalCode, city, json.result.formatted_address);
 
     return {
       placeId: json.result.place_id,
-      label: json.result.formatted_address,
+      label,
       city,
       postalCode,
       countryCode,
@@ -221,17 +251,32 @@ class OpenStreetMapProvider implements MapsProvider {
       display_name: string;
       lat: string;
       lon: string;
-      address?: { city?: string; town?: string; village?: string; postcode?: string; country_code?: string };
+      address?: {
+        house_number?: string;
+        road?: string;
+        pedestrian?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        postcode?: string;
+        country_code?: string;
+      };
     }>;
 
     return items.map((item, index) => {
-      const mainText = item.display_name.split(",")[0]?.trim() ?? item.display_name;
+      const street = [item.address?.house_number, item.address?.road ?? item.address?.pedestrian]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const city = item.address?.city ?? item.address?.town ?? item.address?.village;
+      const mainText = street || item.display_name.split(",")[0]?.trim() || item.display_name;
+      const secondaryText = [item.address?.postcode, city].filter(Boolean).join(" ").trim();
       const placeId = `osm:${item.lat},${item.lon}:${index}`;
       return {
         placeId,
         label: item.display_name,
         mainText,
-        secondaryText: item.display_name.replace(mainText, "").replace(/^,\s*/, ""),
+        secondaryText: secondaryText || trimSecondary(item.display_name.replace(mainText, "").replace(/^,\s*/, "")),
       };
     });
   }
@@ -270,14 +315,32 @@ class OpenStreetMapProvider implements MapsProvider {
 
     const item = (await res.json()) as {
       display_name?: string;
-      address?: { city?: string; town?: string; village?: string; postcode?: string; country_code?: string };
+      address?: {
+        house_number?: string;
+        road?: string;
+        pedestrian?: string;
+        city?: string;
+        town?: string;
+        village?: string;
+        postcode?: string;
+        country_code?: string;
+      };
     };
+
+    const street = [item.address?.house_number, item.address?.road ?? item.address?.pedestrian]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    const city = item.address?.city ?? item.address?.town ?? item.address?.village;
+    const postalCode = item.address?.postcode;
+    const fallback = item.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    const label = shortLabelFromParts(street, postalCode, city, fallback);
 
     return {
       placeId,
-      label: item.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      city: item.address?.city ?? item.address?.town ?? item.address?.village,
-      postalCode: item.address?.postcode,
+      label,
+      city,
+      postalCode,
       countryCode: item.address?.country_code?.toUpperCase(),
       lat,
       lng,

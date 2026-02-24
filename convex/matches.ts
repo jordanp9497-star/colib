@@ -20,10 +20,35 @@ function estimateDetourMinutes(
   );
   const detourDistanceKm = (pickupToRoute + dropToRoute) * 1.4;
   const detourMinutes = (detourDistanceKm / 45) * 60;
+  const pickupProgress = projectProgressOnSegment(
+    parcel.originAddress,
+    trip.originAddress,
+    trip.destinationAddress
+  );
+  const dropProgress = projectProgressOnSegment(
+    parcel.destinationAddress,
+    trip.originAddress,
+    trip.destinationAddress
+  );
   return {
     detourDistanceKm: Math.round(detourDistanceKm * 100) / 100,
     detourMinutes: Math.round(detourMinutes),
+    pickupProgress,
+    dropProgress,
   };
+}
+
+function projectProgressOnSegment(
+  point: { lat: number; lng: number },
+  start: { lat: number; lng: number },
+  end: { lat: number; lng: number }
+) {
+  const dx = end.lng - start.lng;
+  const dy = end.lat - start.lat;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) return 0;
+  const rawT = ((point.lng - start.lng) * dx + (point.lat - start.lat) * dy) / lengthSq;
+  return Math.max(0, Math.min(1, rawT));
 }
 
 export const listByParcel = query({
@@ -66,6 +91,8 @@ export const recomputeForParcel = mutation({
       .withIndex("by_parcel", (q) => q.eq("parcelId", args.parcelId))
       .collect();
 
+    const previouslyMatchedTripIds = new Set(existing.map((match) => String(match.tripId)));
+
     for (const match of existing) {
       await ctx.db.delete(match._id);
     }
@@ -87,6 +114,7 @@ export const recomputeForParcel = mutation({
       if (trip.maxVolumeDm3 < parcel.volumeDm3) continue;
 
       const detour = estimateDetourMinutes(trip, parcel);
+      if (detour.dropProgress + 0.03 < detour.pickupProgress) continue;
       if (detour.detourMinutes > trip.maxDetourMinutes + 5) continue;
 
       const pricing = computeDynamicPrice({
@@ -126,6 +154,21 @@ export const recomputeForParcel = mutation({
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
+
+      const isNewMatchForTrip = !previouslyMatchedTripIds.has(String(trip._id));
+      if (isNewMatchForTrip && trip.ownerVisitorId !== parcel.ownerVisitorId) {
+        await ctx.db.insert("notifications", {
+          recipientVisitorId: trip.ownerVisitorId,
+          actorVisitorId: parcel.ownerVisitorId,
+          type: "new_match_for_trip",
+          title: "Nouveau colis compatible",
+          message: `${parcel.origin} -> ${parcel.destination}`,
+          tripId: trip._id,
+          parcelId: parcel._id,
+          readAt: undefined,
+          createdAt: Date.now(),
+        });
+      }
 
       count += 1;
     }
@@ -173,6 +216,7 @@ export const recomputeForTrip = mutation({
       if (trip.maxVolumeDm3 < parcel.volumeDm3) continue;
 
       const detour = estimateDetourMinutes(trip, parcel);
+      if (detour.dropProgress + 0.03 < detour.pickupProgress) continue;
       if (detour.detourMinutes > trip.maxDetourMinutes + 5) continue;
 
       const pricing = computeDynamicPrice({
@@ -228,6 +272,9 @@ export const reserveFromTripOwner = mutation({
   handler: async (ctx, args) => {
     const match = await ctx.db.get(args.matchId);
     if (!match) throw new Error("Match introuvable");
+    if (match.status !== "candidate") {
+      throw new Error("Ce match n est plus reservable");
+    }
 
     const trip = await ctx.db.get(match.tripId);
     if (!trip) throw new Error("Trajet introuvable");
@@ -244,6 +291,57 @@ export const reserveFromTripOwner = mutation({
       updatedAt: now,
     });
 
+    await ctx.db.patch(parcel._id, {
+      status: "matched",
+      updatedAt: now,
+    });
+
+    if (parcel.ownerVisitorId !== trip.ownerVisitorId) {
+      await ctx.db.insert("notifications", {
+        recipientVisitorId: parcel.ownerVisitorId,
+        actorVisitorId: trip.ownerVisitorId,
+        type: "reservation_request",
+        title: "Nouvelle demande de reservation",
+        message: `${trip.userName} souhaite transporter votre colis`,
+        matchId: match._id,
+        tripId: trip._id,
+        parcelId: parcel._id,
+        readAt: undefined,
+        createdAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+export const acceptReservationRequest = mutation({
+  args: {
+    matchId: v.id("matches"),
+    parcelOwnerVisitorId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const match = await ctx.db.get(args.matchId);
+    if (!match) throw new Error("Match introuvable");
+
+    const parcel = await ctx.db.get(match.parcelId);
+    if (!parcel) throw new Error("Colis introuvable");
+    if (parcel.ownerVisitorId !== args.parcelOwnerVisitorId) {
+      throw new Error("Non autorise");
+    }
+    if (match.status !== "requested") {
+      throw new Error("Cette demande ne peut plus etre acceptee");
+    }
+
+    const trip = await ctx.db.get(match.tripId);
+    if (!trip) throw new Error("Trajet introuvable");
+
+    const now = Date.now();
+    await ctx.db.patch(match._id, {
+      status: "accepted",
+      updatedAt: now,
+    });
+
     const siblingMatches = await ctx.db
       .query("matches")
       .withIndex("by_parcel", (q) => q.eq("parcelId", match.parcelId))
@@ -251,9 +349,9 @@ export const reserveFromTripOwner = mutation({
 
     for (const sibling of siblingMatches) {
       if (sibling._id === match._id) continue;
-      if (sibling.status !== "candidate") continue;
+      if (sibling.status !== "candidate" && sibling.status !== "requested") continue;
       await ctx.db.patch(sibling._id, {
-        status: "cancelled",
+        status: "rejected",
         updatedAt: now,
       });
     }
@@ -261,7 +359,36 @@ export const reserveFromTripOwner = mutation({
     await ctx.db.patch(parcel._id, {
       status: "booked",
       matchedTripId: trip._id,
+      pricingEstimate: match.pricingEstimate,
       updatedAt: now,
+    });
+
+    if (trip.ownerVisitorId !== parcel.ownerVisitorId) {
+      await ctx.db.insert("notifications", {
+        recipientVisitorId: trip.ownerVisitorId,
+        actorVisitorId: parcel.ownerVisitorId,
+        type: "reservation_accepted",
+        title: "Demande acceptee",
+        message: "Le publicateur du colis a valide votre reservation",
+        matchId: match._id,
+        tripId: trip._id,
+        parcelId: parcel._id,
+        readAt: undefined,
+        createdAt: now,
+      });
+    }
+
+    await ctx.db.insert("notifications", {
+      recipientVisitorId: parcel.ownerVisitorId,
+      actorVisitorId: trip.ownerVisitorId,
+      type: "payment_required",
+      title: "Paiement requis (BETA)",
+      message: `Confirmez le paiement de ${match.pricingEstimate.totalAmount} EUR pour finaliser le transport`,
+      matchId: match._id,
+      tripId: trip._id,
+      parcelId: parcel._id,
+      readAt: undefined,
+      createdAt: now,
     });
 
     return { success: true };

@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { approximateZoneKey } from "./lib/geo";
+import { formatAddressShort } from "./lib/address";
 
 const addressInput = v.object({
   label: v.string(),
@@ -62,8 +63,8 @@ export const create = mutation({
       ownerVisitorId: args.ownerVisitorId,
       userId: args.ownerVisitorId,
       userName: args.userName,
-      origin: args.originAddress.label,
-      destination: args.destinationAddress.label,
+      origin: formatAddressShort(args.originAddress),
+      destination: formatAddressShort(args.destinationAddress),
       originAddress: args.originAddress,
       destinationAddress: args.destinationAddress,
       routePolyline: undefined,
@@ -134,8 +135,8 @@ export const update = mutation({
     }
 
     await ctx.db.patch(args.tripId, {
-      origin: args.originAddress.label,
-      destination: args.destinationAddress.label,
+      origin: formatAddressShort(args.originAddress),
+      destination: formatAddressShort(args.destinationAddress),
       originAddress: args.originAddress,
       destinationAddress: args.destinationAddress,
       date: new Date(args.windowStartTs).toISOString(),

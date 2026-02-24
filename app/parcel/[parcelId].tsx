@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
+import { formatShortAddress } from "@/utils/address";
 
 export default function ParcelDetailsScreen() {
   const params = useLocalSearchParams<{ parcelId?: string }>();
@@ -51,7 +52,7 @@ export default function ParcelDetailsScreen() {
         matchId: matchForActiveTrip._id,
         tripOwnerVisitorId: userId,
       });
-      Alert.alert("Reservation envoyee", "Le colis a ete reserve sur votre trajet.");
+      Alert.alert("Demande envoyee", "Le publicateur du colis a recu votre demande de reservation.");
     } catch {
       Alert.alert("Erreur", "Impossible de reserver ce colis pour le moment.");
     } finally {
@@ -60,6 +61,8 @@ export default function ParcelDetailsScreen() {
   };
 
   const canReserve = Boolean(matchForActiveTrip);
+  const shortOrigin = formatShortAddress(parcel.originAddress, parcel.origin);
+  const shortDestination = formatShortAddress(parcel.destinationAddress, parcel.destination);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -71,7 +74,7 @@ export default function ParcelDetailsScreen() {
           <Ionicons name="pin" size={16} color="#2563EB" />
           <Text style={styles.label}>Recuperation</Text>
         </View>
-        <Text style={styles.value}>{parcel.origin}</Text>
+        <Text style={styles.value}>{shortOrigin}</Text>
 
         <View style={styles.rowSpaced}>
           <View style={styles.row}>
@@ -79,7 +82,7 @@ export default function ParcelDetailsScreen() {
             <Text style={styles.label}>Livraison</Text>
           </View>
         </View>
-        <Text style={styles.value}>{parcel.destination}</Text>
+        <Text style={styles.value}>{shortDestination}</Text>
       </View>
 
       <View style={styles.card}>

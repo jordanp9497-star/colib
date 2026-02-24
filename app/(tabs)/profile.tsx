@@ -242,6 +242,7 @@ function LoggedInProfile({
 }) {
   const myTrips = useQuery(api.trips.getByUser, { userId });
   const myParcels = useQuery(api.parcels.getByUser, { userId });
+  const notifications = useQuery(api.notifications.listForUser, { userId });
   const reviews = useQuery(api.reviews.getForUser, { revieweeId: userId });
   const { logout } = useUser();
 
@@ -250,6 +251,8 @@ function LoggedInProfile({
   const saveIdentityDocs = useMutation(api.users.saveIdentityDocuments);
   const removeTrip = useMutation(api.trips.remove);
   const removeParcel = useMutation(api.parcels.remove);
+  const acceptReservationRequest = useMutation(api.matches.acceptReservationRequest);
+  const markNotificationAsRead = useMutation(api.notifications.markAsRead);
 
   const [uploading, setUploading] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
@@ -477,6 +480,26 @@ function LoggedInProfile({
     ]);
   };
 
+  const handleAcceptReservation = async (matchId: string) => {
+    try {
+      await acceptReservationRequest({
+        matchId: matchId as any,
+        parcelOwnerVisitorId: userId,
+      });
+      Alert.alert("Transport confirme", "Le transporteur a ete notifie. Paiement requis en BETA.");
+    } catch {
+      Alert.alert("Erreur", "Impossible d accepter cette demande pour le moment.");
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    try {
+      await markNotificationAsRead({ notificationId: notificationId as any, userId });
+    } catch {
+      // Ignore read errors in UI.
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -684,6 +707,54 @@ function LoggedInProfile({
             ))}
           </View>
         )}
+
+        {/* Section Notifications */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            Notifications ({notifications?.length ?? 0})
+          </Text>
+          {!notifications ? (
+            <ActivityIndicator size="small" color="#6366F1" />
+          ) : notifications.length === 0 ? (
+            <Text style={styles.emptySection}>Aucune notification pour le moment</Text>
+          ) : (
+            notifications.map((notification) => {
+              const canAcceptReservation =
+                notification.type === "reservation_request" &&
+                notification.matchId &&
+                notification.matchStatus === "requested";
+
+              return (
+                <View
+                  key={notification._id}
+                  style={[styles.notificationCard, !notification.readAt && styles.notificationUnread]}
+                >
+                  <Text style={styles.notificationTitle}>{notification.title}</Text>
+                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  <View style={styles.notificationActions}>
+                    {canAcceptReservation ? (
+                      <TouchableOpacity
+                        style={styles.acceptButton}
+                        onPress={() => handleAcceptReservation(String(notification.matchId))}
+                      >
+                        <Text style={styles.acceptButtonText}>Accepter le transport</Text>
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {!notification.readAt ? (
+                      <TouchableOpacity
+                        style={styles.readButton}
+                        onPress={() => handleMarkNotificationRead(String(notification._id))}
+                      >
+                        <Text style={styles.readButtonText}>Marquer lu</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
 
         {/* Section Mes trajets / Mes colis */}
         {isListLoading ? (
@@ -1014,6 +1085,59 @@ const styles = StyleSheet.create({
   },
 
   // Trips / Parcels
+  notificationCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  notificationUnread: {
+    borderColor: "#A5B4FC",
+    backgroundColor: "#EEF2FF",
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  notificationMessage: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 18,
+  },
+  notificationActions: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  acceptButton: {
+    backgroundColor: "#16A34A",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  acceptButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  readButton: {
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  readButtonText: {
+    color: "#334155",
+    fontWeight: "600",
+    fontSize: 12,
+  },
   emptySection: {
     fontSize: 14,
     color: "#94A3B8",

@@ -31,6 +31,7 @@ export default function SendScreen() {
   const parcelToEdit = useQuery(api.parcels.getById, parcelId ? { parcelId: parcelId as any } : "skip");
 
   const [originAddress, setOriginAddress] = useState<GeocodedAddress | null>(null);
+  const [destinationAddress, setDestinationAddress] = useState<GeocodedAddress | null>(null);
   const [size, setSize] = useState<"petit" | "moyen" | "grand">("petit");
   const [weight, setWeight] = useState("2");
   const [volumeDm3, setVolumeDm3] = useState("12");
@@ -46,6 +47,7 @@ export default function SendScreen() {
   useEffect(() => {
     if (!parcelToEdit || !canEditParcel) return;
     setOriginAddress(parcelToEdit.originAddress as GeocodedAddress);
+    setDestinationAddress(parcelToEdit.destinationAddress as GeocodedAddress);
     setSize(parcelToEdit.size);
     setWeight(String(parcelToEdit.weight));
     setVolumeDm3(String(parcelToEdit.volumeDm3));
@@ -88,8 +90,8 @@ export default function SendScreen() {
   }
 
   const handlePublish = async () => {
-    if (!originAddress) {
-      Alert.alert("Champs requis", "Selectionnez au moins l adresse de depart.");
+    if (!originAddress || !destinationAddress) {
+      Alert.alert("Champs requis", "Selectionnez l adresse de depart et l adresse d arrivee.");
       return;
     }
 
@@ -113,7 +115,7 @@ export default function SendScreen() {
       const payload = {
         ownerVisitorId: userId,
         originAddress,
-        destinationAddress: originAddress,
+        destinationAddress,
         size,
         weight: weightNum,
         volumeDm3: volumeNum,
@@ -167,6 +169,12 @@ export default function SendScreen() {
           placeholder="Saisissez puis choisissez"
           value={originAddress}
           onChange={setOriginAddress}
+        />
+        <AddressAutocompleteInput
+          label="Adresse arrivee"
+          placeholder="Saisissez puis choisissez"
+          value={destinationAddress}
+          onChange={setDestinationAddress}
         />
 
 

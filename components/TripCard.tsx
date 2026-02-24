@@ -1,11 +1,22 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatShortAddress } from "@/utils/address";
 
 interface Trip {
   _id: string;
   userName: string;
   origin: string;
   destination: string;
+  originAddress?: {
+    label?: string;
+    city?: string;
+    postalCode?: string;
+  };
+  destinationAddress?: {
+    label?: string;
+    city?: string;
+    postalCode?: string;
+  };
   date: string;
   availableSpace: "petit" | "moyen" | "grand";
   price: number;
@@ -29,6 +40,8 @@ export default function TripCard({
   onDelete?: () => void;
 }) {
   const space = spaceConfig[trip.availableSpace];
+  const shortOrigin = formatShortAddress(trip.originAddress, trip.origin);
+  const shortDestination = formatShortAddress(trip.destinationAddress, trip.destination);
 
   return (
     <View style={styles.card}>
@@ -38,7 +51,7 @@ export default function TripCard({
           <View style={styles.routeTextWrap}>
             <Text style={styles.routeLabel}>Depart</Text>
             <Text style={styles.routeAddress} numberOfLines={2} ellipsizeMode="tail">
-              {trip.origin}
+              {shortOrigin}
             </Text>
           </View>
         </View>
@@ -47,7 +60,7 @@ export default function TripCard({
           <View style={styles.routeTextWrap}>
             <Text style={styles.routeLabel}>Arrivee</Text>
             <Text style={styles.routeAddress} numberOfLines={2} ellipsizeMode="tail">
-              {trip.destination}
+              {shortDestination}
             </Text>
           </View>
         </View>

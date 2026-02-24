@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
+import { formatShortAddress } from "@/utils/address";
 
 interface Props {
   label: string;
@@ -18,10 +19,17 @@ interface Props {
 }
 
 export function AddressAutocompleteInput({ label, value, onChange, placeholder }: Props) {
-  const [input, setInput] = useState(value?.label ?? "");
+  const [input, setInput] = useState(
+    value ? formatShortAddress(value, value.label) : ""
+  );
   const [open, setOpen] = useState(false);
   const { suggestions, loading, error, resolveSuggestion } = useAddressAutocomplete(input);
   const hasValue = input.trim().length > 0;
+
+  useEffect(() => {
+    if (!value) return;
+    setInput(formatShortAddress(value, value.label));
+  }, [value]);
 
   return (
     <View style={styles.root}>
@@ -73,13 +81,17 @@ export function AddressAutocompleteInput({ label, value, onChange, placeholder }
                 const geocoded = await resolveSuggestion(item);
                 if (!geocoded) return;
                 onChange(geocoded);
-                setInput(geocoded.label);
+                setInput(formatShortAddress(geocoded, geocoded.label));
                 setOpen(false);
               }}
             >
-              <Text style={styles.suggestionMain}>{item.mainText}</Text>
+              <Text style={styles.suggestionMain} numberOfLines={1}>
+                {item.mainText}
+              </Text>
               {item.secondaryText ? (
-                <Text style={styles.suggestionSecondary}>{item.secondaryText}</Text>
+                <Text style={styles.suggestionSecondary} numberOfLines={1}>
+                  {item.secondaryText}
+                </Text>
               ) : null}
             </Pressable>
           ))}

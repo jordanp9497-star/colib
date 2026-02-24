@@ -146,6 +146,26 @@ export default defineSchema({
     .index("by_parcel_score", ["parcelId", "score"])
     .index("by_status", ["status"]),
 
+  notifications: defineTable({
+    recipientVisitorId: v.string(),
+    actorVisitorId: v.optional(v.string()),
+    type: v.union(
+      v.literal("reservation_request"),
+      v.literal("reservation_accepted"),
+      v.literal("payment_required"),
+      v.literal("new_match_for_trip")
+    ),
+    title: v.string(),
+    message: v.string(),
+    matchId: v.optional(v.id("matches")),
+    tripId: v.optional(v.id("trips")),
+    parcelId: v.optional(v.id("parcels")),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_recipient_createdAt", ["recipientVisitorId", "createdAt"])
+    .index("by_recipient_readAt", ["recipientVisitorId", "readAt"]),
+
   mapsCache: defineTable({
     key: v.string(),
     namespace: v.string(),
