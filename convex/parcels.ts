@@ -37,7 +37,21 @@ export const getByUser = query({
 export const getById = query({
   args: { parcelId: v.id("parcels") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.parcelId);
+    const parcel = await ctx.db.get(args.parcelId);
+    if (!parcel) return null;
+    const parcelPhotoUrl = parcel.parcelPhotoId
+      ? await ctx.storage.getUrl(parcel.parcelPhotoId)
+      : null;
+    return {
+      ...parcel,
+      parcelPhotoUrl,
+    };
+  },
+});
+
+export const generateUploadUrl = mutation({
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -54,10 +68,12 @@ export const create = mutation({
     fragile: v.boolean(),
     urgencyLevel: v.union(v.literal("normal"), v.literal("urgent"), v.literal("express")),
     insuranceValue: v.optional(v.number()),
+    proposedPrice: v.optional(v.number()),
     preferredWindowStartTs: v.number(),
     preferredWindowEndTs: v.number(),
     phone: v.optional(v.string()),
     recipientPhone: v.optional(v.string()),
+    parcelPhotoId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -76,8 +92,10 @@ export const create = mutation({
       fragile: args.fragile,
       urgencyLevel: args.urgencyLevel,
       insuranceValue: args.insuranceValue,
+      proposedPrice: args.proposedPrice,
       phone: args.phone,
       recipientPhone: args.recipientPhone,
+      parcelPhotoId: args.parcelPhotoId,
       status: "published",
       preferredWindowStartTs: args.preferredWindowStartTs,
       preferredWindowEndTs: args.preferredWindowEndTs,
@@ -106,16 +124,22 @@ export const update = mutation({
     fragile: v.boolean(),
     urgencyLevel: v.union(v.literal("normal"), v.literal("urgent"), v.literal("express")),
     insuranceValue: v.optional(v.number()),
+    proposedPrice: v.optional(v.number()),
     preferredWindowStartTs: v.number(),
     preferredWindowEndTs: v.number(),
     phone: v.optional(v.string()),
     recipientPhone: v.optional(v.string()),
+    parcelPhotoId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const parcel = await ctx.db.get(args.parcelId);
     if (!parcel) throw new Error("Colis introuvable");
     if (parcel.ownerVisitorId !== args.ownerVisitorId) {
       throw new Error("Non autorise");
+    }
+
+    if (parcel.parcelPhotoId && args.parcelPhotoId && String(parcel.parcelPhotoId) !== String(args.parcelPhotoId)) {
+      await ctx.storage.delete(parcel.parcelPhotoId);
     }
 
     await ctx.db.patch(args.parcelId, {
@@ -130,8 +154,10 @@ export const update = mutation({
       fragile: args.fragile,
       urgencyLevel: args.urgencyLevel,
       insuranceValue: args.insuranceValue,
+      proposedPrice: args.proposedPrice,
       phone: args.phone,
       recipientPhone: args.recipientPhone,
+      parcelPhotoId: args.parcelPhotoId,
       status: "published",
       preferredWindowStartTs: args.preferredWindowStartTs,
       preferredWindowEndTs: args.preferredWindowEndTs,
@@ -160,6 +186,10 @@ export const remove = mutation({
 
     for (const match of relatedMatches) {
       await ctx.db.delete(match._id);
+    }
+
+    if (parcel.parcelPhotoId) {
+      await ctx.storage.delete(parcel.parcelPhotoId);
     }
 
     await ctx.db.patch(args.parcelId, {

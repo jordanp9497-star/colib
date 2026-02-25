@@ -15,9 +15,13 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Colib peut suivre votre trajet en arriere-plan pour detecter des opportunites colis.",
         "LSApplicationQueriesSchemes": [
           "waze",
+          "google.navigation",
+          "waze",
           "google.navigation"
-        ]
-      }
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.jojo946.colib"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +31,16 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -74,6 +87,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bad06a89-d8c2-45f4-8637-f6895de95333"
+      }
     }
   }
 }

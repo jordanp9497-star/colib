@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,9 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import TripCard from "@/components/TripCard";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
+import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import type { MapPath, MapPin } from "@/components/maps/CrossPlatformMap.types";
 import { buildDayWindowTimestamps } from "@/components/forms/TimeWindowInput";
 import type { GeocodedAddress } from "@/packages/shared/maps";
-import { useActiveTrip } from "@/context/ActiveTripContext";
 import { ColibLogoMark } from "@/components/branding/ColibLogoMark";
 import { Colors, Fonts, Typography } from "@/constants/theme";
 import { getPersistedItem, getSessionItem, setPersistedItem, setSessionItem } from "@/utils/clientStorage";
@@ -77,7 +79,6 @@ function isOnSameDay(timestamp: number, dayTs: number) {
 }
 
 export default function TripsScreen() {
-  const { activeSession } = useActiveTrip();
   const trips = useQuery(api.trips.list) as TripListItem[] | undefined;
   const [originZone, setOriginZone] = useState<GeocodedAddress | null>(null);
   const [destinationZone, setDestinationZone] = useState<GeocodedAddress | null>(null);
@@ -86,6 +87,8 @@ export default function TripsScreen() {
   const [results, setResults] = useState<TripListItem[]>([]);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [mapFiltersCollapsed, setMapFiltersCollapsed] = useState(false);
+  const [selectedMapTripId, setSelectedMapTripId] = useState<string | null>(null);
   const [isHydratingFilters, setIsHydratingFilters] = useState(true);
   const [lastSearch, setLastSearch] = useState<PersistedSearch | null>(null);
 
@@ -221,8 +224,83 @@ export default function TripsScreen() {
     });
   };
 
-  const listData = submitted ? results : [];
-  const isIdleListState = viewMode === "list" && !submitted;
+  const listData = useMemo(() => (submitted ? results : []), [results, submitted]);
+  const isIdleListState = !submitted;
+  const showSearchPanel = viewMode !== "map" || !mapFiltersCollapsed;
+  const mapData = useMemo(() => (viewMode === "map" ? listData : []), [listData, viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "map" && mapFiltersCollapsed) {
+      setMapFiltersCollapsed(false);
+    }
+  }, [mapFiltersCollapsed, viewMode]);
+
+  const mapPins = useMemo(() => {
+    const pins: MapPin[] = [];
+    mapData.forEach((trip) => {
+      pins.push({
+        id: `trip-origin-${trip._id}`,
+        latitude: trip.originAddress.lat,
+        longitude: trip.originAddress.lng,
+        title: `Depart ${trip.originAddress.city ?? trip.origin}`,
+        color: Colors.dark.primary,
+        kind: "trip-origin",
+      });
+      pins.push({
+        id: `trip-destination-${trip._id}`,
+        latitude: trip.destinationAddress.lat,
+        longitude: trip.destinationAddress.lng,
+        title: `Arrivee ${trip.destinationAddress.city ?? trip.destination}`,
+        color: Colors.dark.success,
+        kind: "trip-destination",
+      });
+    });
+    return pins;
+  }, [mapData]);
+
+  const mapPaths = useMemo(() => {
+    const paths: MapPath[] = [];
+    mapData.forEach((trip) => {
+      paths.push({
+        id: `trip-path-${trip._id}`,
+        coordinates: [
+          { latitude: trip.originAddress.lat, longitude: trip.originAddress.lng },
+          { latitude: trip.destinationAddress.lat, longitude: trip.destinationAddress.lng },
+        ],
+        color: "#4C8DFF",
+        width: selectedMapTripId === String(trip._id) ? 5 : 3,
+      });
+    });
+    return paths;
+  }, [mapData, selectedMapTripId]);
+
+  const selectedMapTrip = useMemo(() => {
+    if (!selectedMapTripId) return null;
+    return mapData.find((trip) => String(trip._id) === selectedMapTripId) ?? null;
+  }, [mapData, selectedMapTripId]);
+
+  useEffect(() => {
+    if (!selectedMapTripId) return;
+    const stillAvailable = listData.some((trip) => String(trip._id) === selectedMapTripId);
+    if (!stillAvailable) {
+      setSelectedMapTripId(null);
+    }
+  }, [listData, selectedMapTripId]);
+
+  const handleMapPinPress = (pinId: string) => {
+    if (!pinId.startsWith("trip-")) return;
+    const tripId = pinId.split("-").slice(2).join("-");
+    if (!tripId) return;
+    if (selectedMapTripId === tripId) {
+      router.push(`/trip/${tripId}` as any);
+      return;
+    }
+    setSelectedMapTripId(tripId);
+  };
+
+  const openProposalForTrip = (tripId: string) => {
+    router.push({ pathname: "/(tabs)/send", params: { proposalTripId: tripId } } as any);
+  };
 
   return (
     <View style={styles.container}>
@@ -239,28 +317,7 @@ export default function TripsScreen() {
       </View>
 
       <View style={[styles.searchContainerWrap, isIdleListState && styles.searchContainerWrapIdle]}>
-      <View style={styles.tripAssistCard}>
-        <View style={styles.tripAssistHeader}>
-          <Ionicons name="navigate-circle-outline" size={18} color={Colors.dark.primary} />
-          <Text style={styles.tripAssistTitle}>Mode conducteur</Text>
-        </View>
-        <Text style={styles.tripAssistText}>
-          Demarrez un trajet avec Waze et analysez automatiquement les colis sur votre chemin.
-        </Text>
-        <TouchableOpacity
-          style={[styles.primaryAction, activeSession && styles.primaryActionDisabled]}
-          onPress={() => router.push("/trip/start" as any)}
-          disabled={Boolean(activeSession)}
-          activeOpacity={0.88}
-        >
-          <Ionicons name={activeSession ? "checkmark-circle-outline" : "play-circle-outline"} size={17} color={Colors.dark.text} />
-          <Text style={styles.primaryActionText}>
-            {activeSession ? "Trajet actif en cours" : "Demarrer un trajet avec Waze"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.searchContainer}>
+        {showSearchPanel ? <View style={styles.searchContainer}>
         {router.canGoBack() ? (
           <TouchableOpacity
             style={styles.backButton}
@@ -290,6 +347,7 @@ export default function TripsScreen() {
               placeholder="Ville ou adresse de depart"
               value={originZone}
               onChange={setOriginZone}
+              enableCurrentLocation
             />
             <Text style={styles.inputLabel}>Date (optionnelle)</Text>
             <TextInput
@@ -327,7 +385,32 @@ export default function TripsScreen() {
             <Text style={[styles.viewModeText, viewMode === "map" && styles.viewModeTextActive]}>Carte</Text>
           </TouchableOpacity>
         </View>
-      </View>
+
+        {viewMode === "map" ? (
+          <TouchableOpacity
+            style={styles.collapseSearchButton}
+            onPress={() => setMapFiltersCollapsed(true)}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="chevron-up" size={14} color={Colors.dark.textSecondary} />
+            <Text style={styles.collapseSearchButtonText}>Masquer la recherche</Text>
+          </TouchableOpacity>
+        ) : null}
+        </View> : (
+          <TouchableOpacity
+            style={styles.collapsedSearchCard}
+            onPress={() => setMapFiltersCollapsed(false)}
+            activeOpacity={0.9}
+          >
+            <View style={styles.collapsedSearchHeader}>
+              <Text style={styles.collapsedSearchTitle}>Recherche masquee</Text>
+              <Ionicons name="chevron-down" size={16} color={Colors.dark.textSecondary} />
+            </View>
+            <Text style={styles.collapsedSearchHint} numberOfLines={1}>
+              {destinationZone?.label ?? "Touchez pour afficher les filtres"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {trips === undefined || isHydratingFilters ? (
@@ -341,14 +424,66 @@ export default function TripsScreen() {
           ))}
         </View>
       ) : viewMode === "map" ? (
-        <View style={styles.center}>
-          <Ionicons name="map-outline" size={24} color={Colors.dark.textSecondary} />
-          <Text style={styles.emptyTitle}>Vue carte</Text>
-          <Text style={styles.emptyText}>Consultez les colis compatibles sur la carte conducteur.</Text>
-          <TouchableOpacity style={styles.openMapButton} onPress={() => router.push("/(tabs)/map" as any)}>
-            <Text style={styles.openMapButtonText}>Ouvrir la carte</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView
+          style={styles.mapResultWrap}
+          contentContainerStyle={styles.mapResultContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {!submitted ? (
+            <View style={styles.center}>
+              <Ionicons name="map-outline" size={24} color={Colors.dark.textSecondary} />
+              <Text style={styles.emptyTitle}>Lancez une recherche</Text>
+              <Text style={styles.emptyText}>Les trajets trouves apparaissent ici sur la carte.</Text>
+            </View>
+          ) : mapData.length === 0 ? (
+            <View style={styles.center}>
+              <Ionicons name="car-outline" size={24} color={Colors.dark.textSecondary} />
+              <Text style={styles.emptyTitle}>Aucun trajet sur la carte</Text>
+              <Text style={styles.emptyText}>Ajustez vos filtres pour trouver des transporteurs.</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.mapMetaRow}>
+                <Text style={styles.resultsMetaText}>{mapData.length} trajets trouves</Text>
+                <Text style={styles.mapHint}>Touchez un trajet pour proposer un colis</Text>
+              </View>
+              <CrossPlatformMap
+                pins={mapPins}
+                paths={mapPaths}
+                height={350}
+                onPinPress={handleMapPinPress}
+                selectedPinId={selectedMapTripId ? `trip-origin-${selectedMapTripId}` : undefined}
+              />
+
+              {selectedMapTrip ? (
+                <View style={styles.tripActionCard}>
+                  <Text style={styles.tripActionTitle}>Trajet selectionne</Text>
+                  <Text style={styles.tripActionRoute} numberOfLines={1}>
+                    {selectedMapTrip.origin} {" -> "} {selectedMapTrip.destination}
+                  </Text>
+                  <Text style={styles.tripActionMeta}>
+                    Espace {selectedMapTrip.availableSpace} - Base {selectedMapTrip.price} EUR
+                  </Text>
+                  <View style={styles.tripActionButtons}>
+                    <TouchableOpacity
+                      style={styles.tripActionPrimary}
+                      onPress={() => openProposalForTrip(String(selectedMapTrip._id))}
+                    >
+                      <Text style={styles.tripActionPrimaryText}>Proposer un colis</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.tripActionSecondary}
+                      onPress={() => router.push(`/trip/${selectedMapTrip._id}` as any)}
+                    >
+                      <Text style={styles.tripActionSecondaryText}>Voir le trajet</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+            </>
+          )}
+        </ScrollView>
       ) : listData.length > 0 ? (
         <>
           <View style={styles.resultsMetaWrap}>
@@ -443,34 +578,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
-  tripAssistCard: {
-    width: "100%",
-    maxWidth: 680,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
-    gap: 8,
-  },
-  tripAssistHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  tripAssistTitle: {
-    color: Colors.dark.text,
-    fontSize: 14,
-    fontFamily: Fonts.sansSemiBold,
-  },
-  tripAssistText: {
-    color: Colors.dark.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: Fonts.sans,
-  },
   backButton: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -485,26 +592,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.surface,
   },
   backButtonText: { fontSize: 12, fontFamily: Fonts.sansSemiBold, color: Colors.dark.textSecondary },
-  primaryAction: {
-    width: "100%",
-    alignSelf: "center",
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    marginBottom: 2,
-    flexDirection: "row",
-    gap: 8,
-  },
-  primaryActionDisabled: {
-    backgroundColor: "#475467",
-  },
-  primaryActionText: {
-    color: Colors.dark.text,
-    fontSize: 15,
-    fontFamily: Fonts.sansSemiBold,
-  },
   advancedToggle: {
     flexDirection: "row",
     alignItems: "center",
@@ -588,16 +675,121 @@ const styles = StyleSheet.create({
   viewModeTextActive: {
     color: Colors.dark.text,
   },
-  openMapButton: {
-    marginTop: 10,
+  collapseSearchButton: {
     borderRadius: 10,
-    backgroundColor: Colors.dark.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
-  openMapButtonText: {
+  collapseSearchButtonText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  collapsedSearchCard: {
+    width: "100%",
+    maxWidth: 680,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  collapsedSearchHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  collapsedSearchTitle: {
     color: Colors.dark.text,
     fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  collapsedSearchHint: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  mapResultWrap: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 96,
+  },
+  mapResultContent: {
+    gap: 10,
+    paddingBottom: 6,
+  },
+  mapMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  mapHint: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  tripActionCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    padding: 12,
+    gap: 6,
+  },
+  tripActionTitle: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  tripActionRoute: {
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    fontFamily: Fonts.sans,
+  },
+  tripActionMeta: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  tripActionButtons: {
+    marginTop: 6,
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  tripActionPrimary: {
+    borderRadius: 10,
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  tripActionPrimaryText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  tripActionSecondary: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  tripActionSecondaryText: {
+    color: Colors.dark.text,
+    fontSize: 12,
     fontFamily: Fonts.sansSemiBold,
   },
   resultsMetaWrap: {
@@ -611,10 +803,12 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 20,
+    paddingBottom: 110,
   },
   skeletonList: {
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 110,
     gap: 12,
   },
   skeletonCard: {

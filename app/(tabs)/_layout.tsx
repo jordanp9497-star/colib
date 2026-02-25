@@ -17,9 +17,11 @@ export default function TabLayout() {
       <ActiveTripBanner />
       <Tabs
         screenOptions={{
+          headerShown: false,
           tabBarActiveTintColor: colors.tint,
           tabBarInactiveTintColor: colors.tabIconDefault,
           tabBarButton: HapticTab,
+          tabBarHideOnKeyboard: true,
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,

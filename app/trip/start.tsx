@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
@@ -22,10 +22,56 @@ import { Colors, Fonts } from "@/constants/theme";
 const DEVIATION_OPTIONS = [5, 10, 20, 30] as const;
 
 export default function StartTripScreen() {
+  const params = useLocalSearchParams<{
+    originPlaceId?: string;
+    originLabel?: string;
+    originCity?: string;
+    originPostalCode?: string;
+    originCountryCode?: string;
+    originLat?: string;
+    originLng?: string;
+    destinationPlaceId?: string;
+    destinationLabel?: string;
+    destinationCity?: string;
+    destinationPostalCode?: string;
+    destinationCountryCode?: string;
+    destinationLat?: string;
+    destinationLng?: string;
+    deviationMaxMinutes?: string;
+    fromOffer?: string;
+  }>();
   const { startTrip, activeSession } = useActiveTrip();
-  const [origin, setOrigin] = useState<GeocodedAddress | null>(null);
-  const [destination, setDestination] = useState<GeocodedAddress | null>(null);
-  const [deviationMaxMinutes, setDeviationMaxMinutes] = useState<(typeof DEVIATION_OPTIONS)[number]>(10);
+
+  const parseAddress = (prefix: "origin" | "destination"): GeocodedAddress | null => {
+    const placeId = params[`${prefix}PlaceId` as const];
+    const label = params[`${prefix}Label` as const];
+    const latRaw = params[`${prefix}Lat` as const];
+    const lngRaw = params[`${prefix}Lng` as const];
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+    if (!placeId || !label || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+    return {
+      placeId,
+      label,
+      city: params[`${prefix}City` as const] || undefined,
+      postalCode: params[`${prefix}PostalCode` as const] || undefined,
+      countryCode: params[`${prefix}CountryCode` as const] || undefined,
+      lat,
+      lng,
+    };
+  };
+
+  const prefilledOrigin = parseAddress("origin");
+  const prefilledDestination = parseAddress("destination");
+  const prefilledDetour = Number(params.deviationMaxMinutes);
+
+  const [origin, setOrigin] = useState<GeocodedAddress | null>(prefilledOrigin);
+  const [destination, setDestination] = useState<GeocodedAddress | null>(prefilledDestination);
+  const [deviationMaxMinutes, setDeviationMaxMinutes] = useState<(typeof DEVIATION_OPTIONS)[number]>(
+    DEVIATION_OPTIONS.includes(prefilledDetour as any) ? (prefilledDetour as (typeof DEVIATION_OPTIONS)[number]) : 10
+  );
   const [opportunitiesEnabled, setOpportunitiesEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingCurrentLocation, setLoadingCurrentLocation] = useState(true);
@@ -35,6 +81,11 @@ export default function StartTripScreen() {
 
     const loadCurrentLocation = async () => {
       if (Platform.OS === "web") {
+        setLoadingCurrentLocation(false);
+        return;
+      }
+
+      if (prefilledOrigin) {
         setLoadingCurrentLocation(false);
         return;
       }
@@ -83,7 +134,7 @@ export default function StartTripScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [prefilledOrigin]);
 
   const canSubmit = useMemo(() => Boolean(origin && destination && !activeSession), [activeSession, destination, origin]);
 
@@ -145,7 +196,11 @@ export default function StartTripScreen() {
         </TouchableOpacity>
 
         <Text style={styles.title}>Demarrer un trajet</Text>
-        <Text style={styles.subtitle}>1 a 2 taps pour activer votre trajet et recevoir des colis compatibles.</Text>
+        <Text style={styles.subtitle}>
+          {params.fromOffer === "1"
+            ? "Votre trajet est publie. Lancez maintenant Waze pour recevoir des opportunites en direct."
+            : "1 a 2 taps pour activer votre trajet et recevoir des colis compatibles."}
+        </Text>
 
         {loadingCurrentLocation ? (
           <View style={styles.loadingRow}>
@@ -159,6 +214,7 @@ export default function StartTripScreen() {
           placeholder="Ma position"
           value={origin}
           onChange={setOrigin}
+          enableCurrentLocation
         />
 
         <AddressAutocompleteInput

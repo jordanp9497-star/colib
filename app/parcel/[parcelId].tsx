@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
@@ -135,7 +135,9 @@ export default function ParcelDetailsScreen() {
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>Taille: {parcel.size}</Text>
           <Text style={styles.metaText}>Poids: {parcel.weight} kg</Text>
+          {parcel.proposedPrice ? <Text style={styles.metaText}>Prix propose: {parcel.proposedPrice} EUR</Text> : null}
         </View>
+        {parcel.parcelPhotoUrl ? <Image source={{ uri: parcel.parcelPhotoUrl }} style={styles.parcelPhoto} /> : null}
       </View>
 
       {isOwner ? (
@@ -259,6 +261,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.dark.textSecondary,
     fontFamily: Fonts.sansSemiBold,
+  },
+  parcelPhoto: {
+    marginTop: 10,
+    width: "100%",
+    height: 190,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   hint: {
     fontSize: 13,

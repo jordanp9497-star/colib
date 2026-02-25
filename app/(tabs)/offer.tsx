@@ -21,6 +21,7 @@ import { buildDayWindowTimestamps, TimeWindowInput } from "@/components/forms/Ti
 import { Colors, Fonts } from "@/constants/theme";
 
 const TOTAL_STEPS = 4;
+type TripMode = "scheduled" | "now";
 
 export default function OfferScreen() {
   const { userId, userName, isLoggedIn } = useUser();
@@ -41,6 +42,7 @@ export default function OfferScreen() {
   const [maxVolumeDm3, setMaxVolumeDm3] = useState("60");
   const [basePrice, setBasePrice] = useState("15");
   const [tripDate, setTripDate] = useState("");
+  const [tripMode, setTripMode] = useState<TripMode>("scheduled");
   const [maxDetourMinutes, setMaxDetourMinutes] = useState(20);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -52,6 +54,7 @@ export default function OfferScreen() {
     setMaxVolumeDm3("60");
     setBasePrice("15");
     setTripDate("");
+    setTripMode("scheduled");
     setMaxDetourMinutes(20);
     setStep(1);
     setShowAdvanced(false);
@@ -108,7 +111,7 @@ export default function OfferScreen() {
       Alert.alert("Itineraire incomplet", "Selectionnez depart et arrivee.");
       return false;
     }
-    if (value === 2 && !buildDayWindowTimestamps(tripDate)) {
+    if (value === 2 && tripMode === "scheduled" && !buildDayWindowTimestamps(tripDate)) {
       Alert.alert("Date invalide", "Renseignez une date valide.");
       return false;
     }
@@ -121,7 +124,15 @@ export default function OfferScreen() {
       return;
     }
 
-    const timeWindow = buildDayWindowTimestamps(tripDate);
+    const timeWindow =
+      tripMode === "scheduled"
+        ? buildDayWindowTimestamps(tripDate)
+        : (() => {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+            const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+            return { windowStartTs: start.getTime(), windowEndTs: end.getTime() };
+          })();
     if (!timeWindow) {
       Alert.alert("Date invalide", "Choisissez la date du trajet au format JJ/MM/AAAA.");
       return;
@@ -164,8 +175,33 @@ export default function OfferScreen() {
         Alert.alert("Annonce mise a jour", "Votre annonce trajet a ete modifiee.");
         router.replace("/(tabs)/profile");
       } else {
+        if (tripMode === "now") {
+          router.push({
+            pathname: "/trip/start",
+            params: {
+              originPlaceId: originAddress.placeId,
+              originLabel: originAddress.label,
+              originCity: originAddress.city ?? "",
+              originPostalCode: originAddress.postalCode ?? "",
+              originCountryCode: originAddress.countryCode ?? "",
+              originLat: String(originAddress.lat),
+              originLng: String(originAddress.lng),
+              destinationPlaceId: destinationAddress.placeId,
+              destinationLabel: destinationAddress.label,
+              destinationCity: destinationAddress.city ?? "",
+              destinationPostalCode: destinationAddress.postalCode ?? "",
+              destinationCountryCode: destinationAddress.countryCode ?? "",
+              destinationLat: String(destinationAddress.lat),
+              destinationLng: String(destinationAddress.lng),
+              deviationMaxMinutes: String(maxDetourMinutes),
+              fromOffer: "1",
+            },
+          } as any);
+          return;
+        }
+
         resetForm();
-        Alert.alert("Trajet publie", "Les colis compatibles sont visibles dans l'onglet Activite.");
+        Alert.alert("Trajet publie", "Votre trajet est ouvert a la reservation.");
       }
     } catch {
       Alert.alert("Erreur", isEditMode ? "Impossible de modifier le trajet." : "Impossible de publier le trajet.");
@@ -216,6 +252,7 @@ export default function OfferScreen() {
               placeholder="Saisissez puis choisissez"
               value={originAddress}
               onChange={setOriginAddress}
+              enableCurrentLocation
             />
             <AddressAutocompleteInput
               label="Adresse arrivee"
@@ -228,16 +265,44 @@ export default function OfferScreen() {
 
         {step === 2 ? (
           <>
-            <Text style={styles.stepTitle}>Quand</Text>
-            <TimeWindowInput
-              title="Date de votre trajet"
-              subtitle="Le matching se fait sur la journee"
-              dateValue={tripDate}
-              onDateChange={setTripDate}
-              slot="day"
-              onSlotChange={() => {}}
-              showSlots={false}
-            />
+            <Text style={styles.stepTitle}>Disponibilite</Text>
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                style={[styles.modeCard, tripMode === "scheduled" && styles.modeCardActive]}
+                onPress={() => setTripMode("scheduled")}
+              >
+                <Ionicons name="calendar-outline" size={16} color={tripMode === "scheduled" ? Colors.dark.text : Colors.dark.textSecondary} />
+                <View style={styles.modeCardContent}>
+                  <Text style={[styles.modeCardTitle, tripMode === "scheduled" && styles.modeCardTitleActive]}>Date de trajet</Text>
+                  <Text style={styles.modeCardText}>Ouvrir le trajet a la reservation</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modeCard, tripMode === "now" && styles.modeCardActive]}
+                onPress={() => setTripMode("now")}
+              >
+                <Ionicons name="navigate-outline" size={16} color={tripMode === "now" ? Colors.dark.text : Colors.dark.textSecondary} />
+                <View style={styles.modeCardContent}>
+                  <Text style={[styles.modeCardTitle, tripMode === "now" && styles.modeCardTitleActive]}>Demarrer maintenant</Text>
+                  <Text style={styles.modeCardText}>Publier puis lancer Waze</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {tripMode === "scheduled" ? (
+              <TimeWindowInput
+                title="Date de votre trajet"
+                subtitle="Le matching se fait sur la journee"
+                dateValue={tripDate}
+                onDateChange={setTripDate}
+                slot="day"
+                onSlotChange={() => {}}
+                showSlots={false}
+              />
+            ) : (
+              <Text style={styles.modeHint}>Le trajet sera publie tout de suite. Vous pourrez ensuite le lancer dans Waze.</Text>
+            )}
           </>
         ) : null}
 
@@ -298,7 +363,8 @@ export default function OfferScreen() {
             <Text style={styles.stepTitle}>Verification</Text>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLine}>Itineraire: {originAddress?.label ?? "-"}{" -> "}{destinationAddress?.label ?? "-"}</Text>
-              <Text style={styles.summaryLine}>Date: {tripDate || "-"}</Text>
+              <Text style={styles.summaryLine}>Mode: {tripMode === "now" ? "Demarrage immediat" : "Date de trajet"}</Text>
+              <Text style={styles.summaryLine}>Date: {tripMode === "scheduled" ? tripDate || "-" : "Aujourd hui"}</Text>
               <Text style={styles.summaryLine}>Espace: {availableSpace}</Text>
               <Text style={styles.summaryLine}>Deviation max: {maxDetourMinutes} min</Text>
             </View>
@@ -317,8 +383,14 @@ export default function OfferScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={styles.button} onPress={() => void publishTrip()}>
-            <Ionicons name="car" size={18} color={Colors.dark.text} />
-            <Text style={styles.buttonText}>{isEditMode ? "Mettre a jour" : "Publier"}</Text>
+            <Ionicons name={tripMode === "now" ? "navigate" : "car"} size={18} color={Colors.dark.text} />
+            <Text style={styles.buttonText}>
+              {isEditMode
+                ? "Mettre a jour"
+                : tripMode === "now"
+                  ? "Publier et demarrer dans Waze"
+                  : "Publier le trajet"}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -352,6 +424,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
+    color: Colors.dark.text,
+    fontSize: 15,
+    fontFamily: Fonts.sans,
   },
   row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: {
@@ -400,6 +475,47 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   summaryLine: { fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
+  modeRow: {
+    gap: 10,
+  },
+  modeCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+  modeCardActive: {
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.primaryLight,
+  },
+  modeCardContent: {
+    flex: 1,
+    gap: 2,
+  },
+  modeCardTitle: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  modeCardTitleActive: {
+    color: Colors.dark.text,
+  },
+  modeCardText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  modeHint: {
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    fontFamily: Fonts.sans,
+    marginTop: 2,
+  },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.dark.background },
   title: { fontSize: 16, color: Colors.dark.text, textAlign: "center", paddingHorizontal: 24, fontFamily: Fonts.displaySemiBold },
 });
