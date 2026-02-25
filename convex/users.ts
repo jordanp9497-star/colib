@@ -1,6 +1,29 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+function normalizePhone(phone?: string) {
+  if (!phone) return undefined;
+  const cleaned = phone.trim().replace(/\s+/g, " ");
+  return cleaned.length ? cleaned : undefined;
+}
+
+function assertValidName(name: string) {
+  if (name.length < 2 || name.length > 80) {
+    throw new Error("Nom invalide");
+  }
+}
+
+function assertValidPhone(phone?: string) {
+  if (!phone) return;
+  if (!/^\+?[0-9()\-\s]{6,20}$/.test(phone)) {
+    throw new Error("Telephone invalide");
+  }
+}
+
 export const getByVisitorId = query({
   args: { visitorId: v.string() },
   handler: async (ctx, args) => {
@@ -45,21 +68,26 @@ export const createOrUpdate = mutation({
     phone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const normalizedName = normalizeName(args.name);
+    const normalizedPhone = normalizePhone(args.phone);
+    assertValidName(normalizedName);
+    assertValidPhone(normalizedPhone);
+
     const existing = await ctx.db
       .query("users")
       .withIndex("by_visitorId", (q) => q.eq("visitorId", args.visitorId))
       .first();
     if (existing) {
       await ctx.db.patch(existing._id, {
-        name: args.name,
-        phone: args.phone,
+        name: normalizedName,
+        phone: normalizedPhone,
       });
       return existing._id;
     }
     return await ctx.db.insert("users", {
       visitorId: args.visitorId,
-      name: args.name,
-      phone: args.phone,
+      name: normalizedName,
+      phone: normalizedPhone,
       emailVerified: false,
       identityVerified: "none",
       createdAt: new Date().toISOString(),

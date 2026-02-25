@@ -365,9 +365,12 @@ export default defineSchema({
     visitorId: v.string(),
     expiresAt: v.number(),
     used: v.boolean(),
+    attempts: v.number(),
+    createdAt: v.number(),
   })
     .index("by_email_code", ["email", "code"])
-    .index("by_visitorId", ["visitorId"]),
+    .index("by_visitorId", ["visitorId"])
+    .index("by_email", ["email"]),
 
   reviews: defineTable({
     reviewerId: v.string(),

@@ -40,7 +40,7 @@ export default function ProfileScreen() {
   }
 
   if (!isLoggedIn) {
-    return <RegistrationFlow userId={userId} register={register} />;
+    return <RegistrationFlow register={register} />;
   }
 
   return <LoggedInProfile userId={userId} user={user!} />;
@@ -49,24 +49,12 @@ export default function ProfileScreen() {
 // ─── INSCRIPTION ────────────────────────────────────────
 
 function RegistrationFlow({
-  userId,
   register,
 }: {
-  userId: string;
   register: (name: string, phone?: string) => Promise<void>;
 }) {
-  const [step, setStep] = useState<"name" | "email">("name");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-
-  // Email verification
-  const [email, setEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-
-  const requestCode = useMutation(api.emailVerification.requestCode);
-  const verifyCode = useMutation(api.emailVerification.verifyCode);
 
   const handleNameSubmit = async () => {
     if (!name.trim()) {
@@ -74,159 +62,38 @@ function RegistrationFlow({
       return;
     }
     await register(name, phone || undefined);
-    setStep("email");
   };
-
-  const handleSendCode = async () => {
-    if (!email.trim() || !email.includes("@")) {
-      Alert.alert("Email invalide", "Veuillez entrer un email valide.");
-      return;
-    }
-    try {
-      const result = await requestCode({ visitorId: userId, email: email.trim() });
-      setCodeSent(true);
-      Alert.alert(
-        "Code envoye (BETA)",
-        `Votre code de verification est : ${result.code}\n\nEn production, ce code serait envoye par email.`
-      );
-    } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le code.");
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (verificationCode.length !== 6) {
-      Alert.alert("Code incomplet", "Entrez le code a 6 chiffres.");
-      return;
-    }
-    setVerifying(true);
-    try {
-      const result = await verifyCode({
-        visitorId: userId,
-        email: email.trim(),
-        code: verificationCode,
-      });
-      if (result.success) {
-        Alert.alert("Email verifie", "Votre email a ete verifie avec succes !");
-      } else {
-        Alert.alert("Erreur", result.error || "Code invalide.");
-      }
-    } catch {
-      Alert.alert("Erreur", "Verification echouee.");
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  if (step === "name") {
-    return (
-      <KeyboardAvoidingView
-        style={styles.authContainer}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.avatarPlaceholder}>
-          <Ionicons name="person" size={48} color="#94A3B8" />
-        </View>
-        <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
-        <Text style={styles.authText}>
-          Creez votre profil pour commencer a publier des trajets et envoyer des
-          colis.
-        </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Votre nom"
-          placeholderTextColor={Colors.dark.textSecondary}
-          value={name}
-          onChangeText={setName}
-          autoFocus
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Telephone (optionnel)"
-          placeholderTextColor={Colors.dark.textSecondary}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
-        <TouchableOpacity style={styles.primaryButton} onPress={handleNameSubmit}>
-          <Text style={styles.primaryButtonText}>Suivant</Text>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // Etape email
   return (
     <KeyboardAvoidingView
       style={styles.authContainer}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.avatarPlaceholder}>
-          <Ionicons name="mail" size={48} color={Colors.dark.primary} />
+        <Ionicons name="person" size={48} color="#94A3B8" />
       </View>
-      <Text style={styles.authTitle}>Verifiez votre email</Text>
+      <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
       <Text style={styles.authText}>
-        Ajoutez votre email pour securiser votre compte et recevoir des
-        notifications.
+        Creez votre profil pour commencer a publier des trajets et envoyer des
+        colis. Vous pourrez ajouter votre email juste apres.
       </Text>
-
-      {!codeSent ? (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="votre@email.com"
-            placeholderTextColor={Colors.dark.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoFocus
-          />
-          <TouchableOpacity style={styles.primaryButton} onPress={handleSendCode}>
-            <Text style={styles.primaryButtonText}>Envoyer le code</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <Text style={styles.codeLabel}>
-            Code envoye a {email}
-          </Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Code a 6 chiffres"
-            placeholderTextColor={Colors.dark.textSecondary}
-            value={verificationCode}
-            onChangeText={(t) => setVerificationCode(t.replace(/[^0-9]/g, "").slice(0, 6))}
-            keyboardType="number-pad"
-            maxLength={6}
-            autoFocus
-          />
-          <TouchableOpacity
-            style={[styles.primaryButton, verifying && styles.disabledButton]}
-            onPress={handleVerifyCode}
-            disabled={verifying}
-          >
-            {verifying ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Verifier</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.resendButton}
-              onPress={() => {
-                setCodeSent(false);
-                setVerificationCode("");
-              }}
-          >
-            <Text style={styles.linkText}>Renvoyer le code</Text>
-          </TouchableOpacity>
-        </>
-      )}
-
-      <TouchableOpacity style={styles.skipButton}>
-        {/* Skip = on ne fait rien, le user est deja cree */}
-        <Text style={styles.linkText}>Passer cette etape</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Votre nom"
+        placeholderTextColor={Colors.dark.textSecondary}
+        value={name}
+        onChangeText={setName}
+        autoFocus
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Telephone (optionnel)"
+        placeholderTextColor={Colors.dark.textSecondary}
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+      />
+      <TouchableOpacity style={styles.primaryButton} onPress={handleNameSubmit}>
+        <Text style={styles.primaryButtonText}>Creer mon profil</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
@@ -482,11 +349,16 @@ function LoggedInProfile({
     }
     try {
       const result = await requestCode({ visitorId: userId, email: email.trim() });
+      if (!result.success) {
+        Alert.alert("Envoi impossible", result.error || "Impossible d'envoyer le code.");
+        return;
+      }
       setCodeSent(true);
-      Alert.alert(
-        "Code envoye (BETA)",
-        `Votre code de verification est : ${result.code}\n\nEn production, ce code serait envoye par email.`
-      );
+      if ("code" in result && result.code) {
+        Alert.alert("Code envoye (BETA)", `Votre code de verification est : ${result.code}`);
+      } else {
+        Alert.alert("Code envoye", "Un code de verification a ete envoye a votre email.");
+      }
     } catch {
       Alert.alert("Erreur", "Impossible d'envoyer le code.");
     }
