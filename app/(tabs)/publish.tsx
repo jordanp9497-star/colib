@@ -10,14 +10,14 @@ export default function PublishScreen() {
   return (
     <View style={styles.container}>
       {router.canGoBack() ? (
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Precedent</Text>
+          <Text style={styles.backButtonText}>Retour accueil</Text>
         </TouchableOpacity>
       ) : null}
 
       <Text style={styles.title}>Publier</Text>
-      <Text style={styles.subtitle}>Choisissez ce que vous voulez publier.</Text>
+      <Text style={styles.subtitle}>Choisissez un parcours selon votre besoin du moment.</Text>
 
       <TouchableOpacity style={styles.primaryButton} activeOpacity={0.9} onPress={() => setOpen(true)}>
         <Ionicons name="add-circle" size={18} color={Colors.dark.text} />
@@ -26,12 +26,20 @@ export default function PublishScreen() {
 
       <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8} onPress={() => router.push("/(tabs)/send" as any)}>
         <Ionicons name="cube-outline" size={17} color={Colors.dark.primary} />
-        <Text style={styles.secondaryButtonText}>Envoyer un colis</Text>
+        <View style={styles.actionCopyWrap}>
+          <Text style={styles.secondaryButtonText}>Envoyer un colis</Text>
+          <Text style={styles.secondaryButtonSubtext}>Je cherche un transporteur pour expedier rapidement</Text>
+        </View>
+        <Text style={styles.actionEta}>~1 min</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8} onPress={() => router.push("/(tabs)/offer" as any)}>
         <Ionicons name="car-outline" size={17} color={Colors.dark.primary} />
-        <Text style={styles.secondaryButtonText}>Proposer un trajet</Text>
+        <View style={styles.actionCopyWrap}>
+          <Text style={styles.secondaryButtonText}>Proposer un trajet</Text>
+          <Text style={styles.secondaryButtonSubtext}>J ai de la place dans mon vehicule pour transporter</Text>
+        </View>
+        <Text style={styles.actionEta}>~2 min</Text>
       </TouchableOpacity>
 
       <Modal transparent visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
@@ -50,7 +58,11 @@ export default function PublishScreen() {
               }}
             >
               <Ionicons name="cube-outline" size={18} color={Colors.dark.text} />
-              <Text style={styles.sheetActionText}>Envoyer un colis</Text>
+              <View style={styles.actionCopyWrap}>
+                <Text style={styles.sheetActionText}>Envoyer un colis</Text>
+                <Text style={styles.sheetActionSubtext}>Besoin d expedier un colis</Text>
+              </View>
+              <Text style={styles.actionEta}>~1 min</Text>
               <Ionicons name="chevron-forward" size={16} color={Colors.dark.textSecondary} />
             </TouchableOpacity>
 
@@ -63,7 +75,11 @@ export default function PublishScreen() {
               }}
             >
               <Ionicons name="car-outline" size={18} color={Colors.dark.text} />
-              <Text style={styles.sheetActionText}>Proposer un trajet</Text>
+              <View style={styles.actionCopyWrap}>
+                <Text style={styles.sheetActionText}>Proposer un trajet</Text>
+                <Text style={styles.sheetActionSubtext}>Publier votre itineraire</Text>
+              </View>
+              <Text style={styles.actionEta}>~2 min</Text>
               <Ionicons name="chevron-forward" size={16} color={Colors.dark.textSecondary} />
             </TouchableOpacity>
           </Pressable>
@@ -134,9 +150,23 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
+  actionCopyWrap: {
+    flex: 1,
+  },
   secondaryButtonText: {
     color: Colors.dark.text,
     fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  secondaryButtonSubtext: {
+    marginTop: 2,
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  actionEta: {
+    color: Colors.dark.warning,
+    fontSize: 12,
     fontFamily: Fonts.sansSemiBold,
   },
   backdrop: {
@@ -189,5 +219,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.sansSemiBold,
     flex: 1,
+  },
+  sheetActionSubtext: {
+    marginTop: 2,
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
   },
 });

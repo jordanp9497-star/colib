@@ -48,12 +48,17 @@ export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }:
             coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
             title={pin.title}
             description={pin.description}
-            pinColor={pin.kind === "parcel" ? undefined : pin.color}
+            pinColor={pin.kind === "parcel" || pin.kind === "cluster" ? undefined : pin.color}
             onPress={() => onPinPress?.(pin.id)}
           >
             {pin.kind === "parcel" ? (
               <View style={styles.parcelMarker}>
                 <Ionicons name="cube" size={12} color="#FFFFFF" />
+              </View>
+            ) : null}
+            {pin.kind === "cluster" ? (
+              <View style={styles.clusterMarker}>
+                <Text style={styles.clusterText}>{pin.title?.split(" ")[0] ?? "2"}</Text>
               </View>
             ) : null}
           </Marker>
@@ -103,5 +108,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 3,
     elevation: 3,
+  },
+  clusterMarker: {
+    minWidth: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#2563EB",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  clusterText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

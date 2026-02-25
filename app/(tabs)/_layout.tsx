@@ -23,6 +23,8 @@ export default function TabLayout() {
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,
+            height: 68,
+            paddingTop: 6,
           },
           headerStyle: {
             backgroundColor: colors.card,
@@ -36,14 +38,21 @@ export default function TabLayout() {
             fontFamily: Fonts.sansSemiBold,
             fontSize: 11,
           },
+          tabBarItemStyle: {
+            borderRadius: 10,
+            marginHorizontal: 4,
+          },
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
             title: "Accueil",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <View style={styles.tabIconWrap}>
+                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
+                <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
+              </View>
             ),
           }}
         />
@@ -51,8 +60,11 @@ export default function TabLayout() {
           name="publish"
           options={{
             title: "Publier",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="add-circle-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <View style={styles.tabIconWrap}>
+                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
+                <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={size} color={color} />
+              </View>
             ),
           }}
         />
@@ -60,8 +72,11 @@ export default function TabLayout() {
           name="activity"
           options={{
             title: "Activite",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="notifications-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <View style={styles.tabIconWrap}>
+                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
+                <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={color} />
+              </View>
             ),
           }}
         />
@@ -69,8 +84,11 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: "Profil",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <View style={styles.tabIconWrap}>
+                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
+                <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+              </View>
             ),
           }}
         />
@@ -91,5 +109,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
+  },
+  tabIconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 3,
+    gap: 5,
+  },
+  tabIndicator: {
+    width: 30,
+    height: 3,
+    borderRadius: 99,
+    backgroundColor: "transparent",
+  },
+  tabIndicatorActive: {
+    backgroundColor: Colors.dark.primary,
   },
 });

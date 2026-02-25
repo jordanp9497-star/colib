@@ -5,7 +5,7 @@ export type MapPin = {
   title?: string;
   description?: string;
   color?: string;
-  kind?: "trip-origin" | "trip-destination" | "parcel";
+  kind?: "trip-origin" | "trip-destination" | "parcel" | "cluster";
 };
 
 export type MapPath = {

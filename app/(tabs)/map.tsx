@@ -22,6 +22,7 @@ export default function MapScreen() {
 
   const [selectedDetour, setSelectedDetour] = useState(20);
   const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
   const activeTrip = useMemo(() => myTrips?.find((t) => t.status === "published"), [myTrips]);
   const matches = useQuery(
@@ -97,18 +98,73 @@ export default function MapScreen() {
     };
   }, [activeTrip, getRoute]);
 
+  const parcelMatches = useMemo(
+    () =>
+      filteredMatches
+        .map((match) => ({ match, parcel: parcelById.get(String(match.parcelId)) }))
+        .filter((entry) => Boolean(entry.parcel)),
+    [filteredMatches, parcelById]
+  );
+
+  const clusteredPins = useMemo(() => {
+    const step = 0.08;
+    const buckets = new Map<string, { latitude: number; longitude: number; parcels: any[] }>();
+
+    parcelMatches.forEach(({ parcel }) => {
+      const latBucket = Math.round(parcel.originAddress.lat / step);
+      const lngBucket = Math.round(parcel.originAddress.lng / step);
+      const key = `${latBucket}:${lngBucket}`;
+      const current = buckets.get(key);
+      if (!current) {
+        buckets.set(key, {
+          latitude: parcel.originAddress.lat,
+          longitude: parcel.originAddress.lng,
+          parcels: [parcel],
+        });
+        return;
+      }
+      const nextCount = current.parcels.length + 1;
+      current.latitude = (current.latitude * current.parcels.length + parcel.originAddress.lat) / nextCount;
+      current.longitude = (current.longitude * current.parcels.length + parcel.originAddress.lng) / nextCount;
+      current.parcels.push(parcel);
+    });
+
+    return Array.from(buckets.entries()).map(([bucketId, group]) => ({ bucketId, ...group }));
+  }, [parcelMatches]);
+
+  const clusterByPinId = useMemo(() => {
+    const map = new Map<string, any[]>();
+    clusteredPins.forEach((cluster) => {
+      if (cluster.parcels.length <= 1) return;
+      map.set(`cluster-${cluster.bucketId}`, cluster.parcels);
+    });
+    return map;
+  }, [clusteredPins]);
+
   const mapPins = useMemo(() => {
-    const matchedIds = new Set(filteredMatches.map((m) => String(m.parcelId)));
-    const pins: MapPin[] = (parcels ?? [])
-      .filter((parcel) => matchedIds.has(String(parcel._id)))
-      .map((parcel) => ({
-        id: `parcel-${parcel._id}`,
-        latitude: parcel.originAddress.lat,
-        longitude: parcel.originAddress.lng,
-        title: `Colis a recuperer: ${parcel.originAddress.city ?? parcel.origin}`,
+    const pins: MapPin[] = clusteredPins.map((cluster) => {
+      if (cluster.parcels.length === 1) {
+        const parcel = cluster.parcels[0];
+        return {
+          id: `parcel-${parcel._id}`,
+          latitude: parcel.originAddress.lat,
+          longitude: parcel.originAddress.lng,
+          title: `Colis: ${parcel.originAddress.city ?? parcel.origin}`,
           color: "#F4B740",
-        kind: "parcel" as const,
-      }));
+          kind: "parcel" as const,
+        };
+      }
+
+      return {
+        id: `cluster-${cluster.bucketId}`,
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+        title: `${cluster.parcels.length} colis`,
+        description: "Zone dense",
+        color: Colors.dark.info,
+        kind: "cluster" as const,
+      };
+    });
 
     if (activeTrip) {
       pins.unshift({
@@ -130,24 +186,30 @@ export default function MapScreen() {
     }
 
     return pins;
-  }, [activeTrip, filteredMatches, parcels]);
+  }, [activeTrip, clusteredPins]);
 
-  const matchesWithParcel = useMemo(
-    () =>
-      filteredMatches
-        .map((match) => ({ match, parcel: parcelById.get(String(match.parcelId)) }))
-        .filter((entry) => Boolean(entry.parcel)),
-    [filteredMatches, parcelById]
-  );
+  const matchesWithParcel = parcelMatches;
 
   const openParcelDetails = (parcelId: string) => {
     router.push(`/parcel/${parcelId}` as any);
   };
 
   const handlePinPress = (pinId: string) => {
-    if (!pinId.startsWith("parcel-")) return;
-    openParcelDetails(pinId.replace("parcel-", ""));
+    setSelectedPinId(pinId);
   };
+
+  const selectedClusterParcels = selectedPinId ? clusterByPinId.get(selectedPinId) ?? [] : [];
+  const selectedParcelId = selectedPinId?.startsWith("parcel-") ? selectedPinId.replace("parcel-", "") : null;
+  const selectedParcel = selectedParcelId ? parcelById.get(selectedParcelId) : null;
+  const selectedIsTripPin = selectedPinId?.startsWith("trip-") ?? false;
+
+  useEffect(() => {
+    if (!selectedPinId) return;
+    const stillVisible = mapPins.some((pin) => pin.id === selectedPinId);
+    if (!stillVisible) {
+      setSelectedPinId(null);
+    }
+  }, [mapPins, selectedPinId]);
 
   const mapPaths = useMemo(() => {
     if (!activeTrip || routeCoordinates.length < 2) return [];
@@ -190,20 +252,79 @@ export default function MapScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       {router.canGoBack() ? (
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Precedent</Text>
+          <Text style={styles.backButtonText}>Retour accueil</Text>
         </TouchableOpacity>
       ) : null}
 
       <Text style={styles.title}>Carte de matching</Text>
       <DetourFilter value={selectedDetour} onChange={handleDetourChange} />
 
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: Colors.dark.primary }]} />
+          <Text style={styles.legendText}>Trajet</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: "#F4B740" }]} />
+          <Text style={styles.legendText}>Pickup colis</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: Colors.dark.success }]} />
+          <Text style={styles.legendText}>Drop trajet</Text>
+        </View>
+      </View>
+
       <View style={styles.mapWrap}>
         <CrossPlatformMap pins={mapPins} paths={mapPaths} height={mapHeight} onPinPress={handlePinPress} />
       </View>
+
+      {selectedPinId ? (
+        <View style={styles.bottomSheet}>
+          <View style={styles.sheetHandle} />
+          {selectedParcel ? (
+            <>
+              <Text style={styles.sheetTitle}>Pin colis selectionne</Text>
+              <Text style={styles.sheetSubtitle}>{selectedParcel.originAddress.city ?? selectedParcel.origin}</Text>
+              <TouchableOpacity style={styles.sheetCta} onPress={() => openParcelDetails(String(selectedParcel._id))}>
+                <Text style={styles.sheetCtaText}>Voir colis</Text>
+              </TouchableOpacity>
+            </>
+          ) : selectedClusterParcels.length > 0 ? (
+            <>
+              <Text style={styles.sheetTitle}>Zone dense ({selectedClusterParcels.length} colis)</Text>
+              <Text style={styles.sheetSubtitle}>Choisissez un colis de la zone pour ouvrir sa fiche.</Text>
+              <View style={styles.sheetMiniList}>
+                {selectedClusterParcels.slice(0, 3).map((parcel) => (
+                  <TouchableOpacity
+                    key={parcel._id}
+                    style={styles.miniParcelButton}
+                    onPress={() => openParcelDetails(String(parcel._id))}
+                  >
+                    <Text style={styles.miniParcelText} numberOfLines={1}>{parcel.originAddress.city ?? parcel.origin}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          ) : selectedIsTripPin ? (
+            <>
+              <Text style={styles.sheetTitle}>Pin trajet selectionne</Text>
+              <Text style={styles.sheetSubtitle}>Ouvrez le detail du trajet actif.</Text>
+              <TouchableOpacity style={styles.sheetCta} onPress={() => router.push(`/trip/${activeTrip._id}` as any)}>
+                <Text style={styles.sheetCtaText}>Voir trajet</Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.overlayPanel}>
         <Text style={styles.overlayTitle}>{filteredMatches.length} colis compatibles</Text>
@@ -262,6 +383,91 @@ const styles = StyleSheet.create({
   mapWrap: {
     marginTop: 12,
     marginBottom: 8,
+  },
+  legendRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: -2,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+  },
+  legendText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  bottomSheet: {
+    marginTop: 2,
+    marginBottom: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    padding: 12,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: Colors.dark.border,
+    marginBottom: 10,
+  },
+  sheetTitle: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  sheetSubtitle: {
+    marginTop: 4,
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    fontFamily: Fonts.sans,
+  },
+  sheetCta: {
+    marginTop: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetCtaText: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  sheetMiniList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  miniParcelButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+  },
+  miniParcelText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   overlayPanel: {
     marginTop: 2,

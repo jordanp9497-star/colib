@@ -260,13 +260,18 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
       }
     }
 
-    const started = await startTripMutation({
-      userId,
-      origin: input.origin,
-      destination: input.destination,
-      deviationMaxMinutes: input.deviationMaxMinutes,
-      opportunitiesEnabled: input.opportunitiesEnabled,
-    });
+    let started: any;
+    try {
+      started = await startTripMutation({
+        userId,
+        origin: input.origin,
+        destination: input.destination,
+        deviationMaxMinutes: input.deviationMaxMinutes,
+        opportunitiesEnabled: input.opportunitiesEnabled,
+      });
+    } catch {
+      return { success: false, error: "trip_start_failed" };
+    }
 
     const snapshot: ActiveSessionSnapshot = {
       tripSessionId: String(started.tripSessionId),
@@ -279,7 +284,11 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
     setLocalFallback(snapshot);
     await persistSnapshot(snapshot);
 
-    await openNavigationApp({ lat: input.destination.lat, lng: input.destination.lng });
+    try {
+      await openNavigationApp({ lat: input.destination.lat, lng: input.destination.lng });
+    } catch {
+      // Trip is started even if external navigation app cannot open.
+    }
 
     return { success: true };
   }, [persistSnapshot, startTripMutation, userId]);

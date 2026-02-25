@@ -193,10 +193,18 @@ export default function SendScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => (step === 1 ? router.back() : setStep((prev) => prev - 1))}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        style={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (step === 1 ? router.replace("/(tabs)" as any) : setStep((prev) => prev - 1))}
+        >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>{step === 1 ? "Precedent" : "Etape precedente"}</Text>
+          <Text style={styles.backButtonText}>{step === 1 ? "Retour accueil" : "Etape precedente"}</Text>
         </TouchableOpacity>
 
         <Text style={styles.header}>{isEditMode ? "Modifier mon colis" : "Publier un colis"}</Text>

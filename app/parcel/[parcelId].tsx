@@ -16,6 +16,7 @@ export default function ParcelDetailsScreen() {
   const matches = useQuery(api.matches.listByParcel, parcelId ? { parcelId: parcelId as any } : "skip");
   const myTrips = useQuery(api.trips.getByUser, { userId });
   const reserveMatch = useMutation((api as any).matches.reserveFromTripOwner);
+  const removeParcel = useMutation(api.parcels.remove);
 
   const [isReserving, setIsReserving] = useState(false);
 
@@ -63,12 +64,32 @@ export default function ParcelDetailsScreen() {
   const canReserve = Boolean(matchForActiveTrip);
   const shortOrigin = formatShortAddress(parcel.originAddress, parcel.origin);
   const shortDestination = formatShortAddress(parcel.destinationAddress, parcel.destination);
+  const isOwner = parcel.ownerVisitorId === userId;
+
+  const handleDeleteParcel = () => {
+    Alert.alert("Supprimer l'annonce", "Voulez-vous vraiment supprimer ce colis ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeParcel({ parcelId: parcel._id, ownerVisitorId: userId });
+            Alert.alert("Annonce supprimee", "Votre colis a ete retire.");
+            router.replace("/(tabs)/profile" as any);
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer ce colis.");
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Precedent</Text>
+        <Text style={styles.backButtonText}>Retour accueil</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Annonce colis</Text>
@@ -107,24 +128,38 @@ export default function ParcelDetailsScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Reserver</Text>
-        {!activeTrip ? (
-          <Text style={styles.hint}>Publiez un trajet pour pouvoir reserver ce colis.</Text>
-        ) : !canReserve ? (
-          <Text style={styles.hint}>Ce colis n est pas encore match avec votre trajet actif.</Text>
-        ) : (
-          <Text style={styles.hint}>Ce colis est compatible avec votre trajet actif.</Text>
-        )}
+      {isOwner ? (
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push({ pathname: "/(tabs)/send", params: { parcelId: String(parcel._id) } })}
+          >
+            <Text style={styles.editButtonText}>Modifier l&apos;annonce</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteParcel}>
+            <Text style={styles.deleteButtonText}>Supprimer l&apos;annonce</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Reserver</Text>
+          {!activeTrip ? (
+            <Text style={styles.hint}>Publiez un trajet pour pouvoir reserver ce colis.</Text>
+          ) : !canReserve ? (
+            <Text style={styles.hint}>Ce colis n est pas encore match avec votre trajet actif.</Text>
+          ) : (
+            <Text style={styles.hint}>Ce colis est compatible avec votre trajet actif.</Text>
+          )}
 
-        <TouchableOpacity
-          style={[styles.reserveButton, (!canReserve || isReserving) && styles.reserveButtonDisabled]}
-          onPress={handleReserve}
-          disabled={!canReserve || isReserving}
-        >
-          {isReserving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.reserveButtonText}>Reserver</Text>}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.reserveButton, (!canReserve || isReserving) && styles.reserveButtonDisabled]}
+            onPress={handleReserve}
+            disabled={!canReserve || isReserving}
+          >
+            {isReserving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.reserveButtonText}>Reserver</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -233,6 +268,34 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 15,
+  },
+  actionsRow: {
+    marginTop: 2,
+    gap: 10,
+  },
+  editButton: {
+    borderRadius: 10,
+    backgroundColor: "#2563EB",
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  deleteButton: {
+    borderRadius: 10,
+    backgroundColor: "#B91C1C",
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
   },
   center: {
     flex: 1,

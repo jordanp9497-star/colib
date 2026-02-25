@@ -179,10 +179,18 @@ export default function OfferScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => (step === 1 ? router.back() : setStep((prev) => prev - 1))}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (step === 1 ? router.replace("/(tabs)" as any) : setStep((prev) => prev - 1))}
+        >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>{step === 1 ? "Precedent" : "Etape precedente"}</Text>
+          <Text style={styles.backButtonText}>{step === 1 ? "Retour accueil" : "Etape precedente"}</Text>
         </TouchableOpacity>
 
         <Text style={styles.header}>{isEditMode ? "Modifier mon trajet" : "Publier un trajet"}</Text>

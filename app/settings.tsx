@@ -18,10 +18,15 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
         <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Precedent</Text>
+        <Text style={styles.backButtonText}>Retour accueil</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Reglages</Text>

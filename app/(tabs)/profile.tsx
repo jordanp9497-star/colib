@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  LayoutAnimation,
+  UIManager,
+  AccessibilityInfo,
 } from "react-native";
 import { Image } from "expo-image";
 import { useQuery, useMutation } from "convex/react";
@@ -265,11 +268,50 @@ function LoggedInProfile({
   const [verificationCode, setVerificationCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    identity: true,
+    verification: true,
+    trips: false,
+    parcels: false,
+  });
+  const [inlineFeedback, setInlineFeedback] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   const requestCode = useMutation(api.emailVerification.requestCode);
   const verifyCode = useMutation(api.emailVerification.verifyCode);
 
   const isListLoading = myTrips === undefined || myParcels === undefined;
+  const completionChecks = [
+    Boolean(user.name.trim()),
+    Boolean(user.phone?.trim()),
+    Boolean(user.emailVerified),
+    Boolean(user.profilePhotoUrl),
+    Boolean(user.identityVerified === "verified"),
+  ];
+  const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((value) => {
+      if (mounted) setReduceMotion(value);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    if (!reduceMotion) {
+      if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+      }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const handlePickProfilePhoto = async () => {
     Alert.alert("Photo de profil", "Comment voulez-vous ajouter votre photo ?", [
@@ -293,11 +335,13 @@ function LoggedInProfile({
 
   const uploadProfilePhoto = async (uri: string) => {
     setUploading(true);
+    setInlineFeedback(null);
     try {
       const storageId = await uploadToConvex(uri, generateUploadUrl);
       await saveProfilePhoto({ visitorId: userId, storageId: storageId as any });
+      setInlineFeedback({ type: "success", message: "Photo de profil mise a jour." });
     } catch {
-      Alert.alert("Erreur", "Impossible de sauvegarder la photo.");
+      setInlineFeedback({ type: "error", message: "Impossible de sauvegarder la photo." });
     } finally {
       setUploading(false);
     }
@@ -325,6 +369,7 @@ function LoggedInProfile({
 
   const uploadIdCard = async (uri: string) => {
     setUploadingId(true);
+    setInlineFeedback(null);
     try {
       const storageId = await uploadToConvex(uri, generateUploadUrl);
       await saveIdentityDocs({
@@ -332,9 +377,9 @@ function LoggedInProfile({
         idCardPhotoId: storageId as any,
         carteGrisePhotoId: user.carteGrisePhotoId as any,
       });
-      Alert.alert("Envoye", "Votre piece d'identite a ete soumise.");
+      setInlineFeedback({ type: "success", message: "Piece d'identite envoyee." });
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le document.");
+      setInlineFeedback({ type: "error", message: "Impossible d'envoyer la piece d'identite." });
     } finally {
       setUploadingId(false);
     }
@@ -362,13 +407,14 @@ function LoggedInProfile({
 
   const uploadCarteGrise = async (uri: string) => {
     setUploadingCg(true);
+    setInlineFeedback(null);
     try {
       const storageId = await uploadToConvex(uri, generateUploadUrl);
       if (!user.idCardPhotoId) {
-        Alert.alert(
-          "Piece d'identite requise",
-          "Veuillez d'abord envoyer votre piece d'identite."
-        );
+        setInlineFeedback({
+          type: "info",
+          message: "Envoyez d'abord votre piece d'identite avant la carte grise.",
+        });
         return;
       }
       await saveIdentityDocs({
@@ -376,9 +422,9 @@ function LoggedInProfile({
         idCardPhotoId: user.idCardPhotoId as any,
         carteGrisePhotoId: storageId as any,
       });
-      Alert.alert("Envoye", "Votre carte grise a ete soumise.");
+      setInlineFeedback({ type: "success", message: "Carte grise envoyee." });
     } catch {
-      Alert.alert("Erreur", "Impossible d'envoyer le document.");
+      setInlineFeedback({ type: "error", message: "Impossible d'envoyer la carte grise." });
     } finally {
       setUploadingCg(false);
     }
@@ -394,20 +440,20 @@ function LoggedInProfile({
 
   const handleSubmitCompliance = async () => {
     if (!user.idCardPhotoId || !user.carteGrisePhotoId) {
-      Alert.alert("Documents requis", "Ajoutez la piece identite et la carte grise avant envoi.");
+      setInlineFeedback({ type: "info", message: "Ajoutez les deux documents avant envoi du dossier." });
       return;
     }
 
     const idCardExpiresAt = parseExpiryInputToTimestamp(idCardExpiryInput);
     const carteGriseExpiresAt = parseExpiryInputToTimestamp(carteGriseExpiryInput);
     if (!idCardExpiresAt || !carteGriseExpiresAt) {
-      Alert.alert("Dates invalides", "Utilisez le format YYYY-MM-DD pour les deux dates.");
+      setInlineFeedback({ type: "error", message: "Utilisez le format YYYY-MM-DD pour les deux dates." });
       return;
     }
 
     const plate = vehiclePlate.trim().toUpperCase();
     if (plate.length < 4) {
-      Alert.alert("Plaque invalide", "Entrez un numero de plaque valide.");
+      setInlineFeedback({ type: "error", message: "Entrez un numero de plaque valide." });
       return;
     }
 
@@ -421,9 +467,9 @@ function LoggedInProfile({
         carteGriseExpiresAt,
         vehiclePlateNumber: plate,
       });
-      Alert.alert("Dossier envoye", `Statut actuel: ${result.status}`);
+      setInlineFeedback({ type: "success", message: `Dossier envoye - Statut: ${result.status}.` });
     } catch {
-      Alert.alert("Erreur", "Impossible de soumettre le dossier transporteur.");
+      setInlineFeedback({ type: "error", message: "Impossible de soumettre le dossier transporteur." });
     } finally {
       setSubmittingCompliance(false);
     }
@@ -531,9 +577,9 @@ function LoggedInProfile({
       {/* Header */}
       <View style={styles.profileHeader}>
         {router.canGoBack() ? (
-          <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.headerBackButton} onPress={() => router.replace("/(tabs)" as any)}>
             <Ionicons name="arrow-back" size={16} color={Colors.dark.text} />
-            <Text style={styles.headerBackButtonText}>Precedent</Text>
+            <Text style={styles.headerBackButtonText}>Retour accueil</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -577,6 +623,15 @@ function LoggedInProfile({
             <VerificationBadge type="identity_verified" />
           )}
         </View>
+        <View style={styles.completionWrap}>
+          <View style={styles.completionHeader}>
+            <Text style={styles.completionText}>Profil complete a {completionPercent}%</Text>
+            <Text style={styles.completionHint}>Completer les infos critiques</Text>
+          </View>
+          <View style={styles.completionTrack}>
+            <View style={[styles.completionBar, { width: `${completionPercent}%` }]} />
+          </View>
+        </View>
       </View>
 
       <ScrollView
@@ -584,11 +639,29 @@ function LoggedInProfile({
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        removeClippedSubviews
         scrollEventThrottle={16}
       >
-        {/* Section Email */}
-        <View style={styles.section}>
+        {inlineFeedback ? (
+          <View
+            style={[
+              styles.inlineFeedback,
+              inlineFeedback.type === "success" && styles.inlineFeedbackSuccess,
+              inlineFeedback.type === "error" && styles.inlineFeedbackError,
+              inlineFeedback.type === "info" && styles.inlineFeedbackInfo,
+            ]}
+          >
+            <Text style={styles.inlineFeedbackText}>{inlineFeedback.message}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.foldSection}>
+          <TouchableOpacity style={styles.foldHeader} onPress={() => toggleSection("identity")} activeOpacity={0.85}>
+            <Text style={styles.foldTitle}>Identite</Text>
+            <Ionicons name={openSections.identity ? "chevron-up" : "chevron-down"} size={16} color={Colors.dark.textSecondary} />
+          </TouchableOpacity>
+          {openSections.identity ? (
+            <View style={styles.foldBody}>
+          <View style={styles.section}>
           <Text style={styles.sectionLabel}>Email</Text>
           {user.emailVerified && user.email ? (
             <View style={styles.infoRow}>
@@ -659,9 +732,18 @@ function LoggedInProfile({
               </TouchableOpacity>
             </View>
           )}
+          </View>
+            </View>
+          ) : null}
         </View>
 
-        {/* Section Verification d'identite */}
+        <View style={styles.foldSection}>
+          <TouchableOpacity style={styles.foldHeader} onPress={() => toggleSection("verification")} activeOpacity={0.85}>
+            <Text style={styles.foldTitle}>Verification</Text>
+            <Ionicons name={openSections.verification ? "chevron-up" : "chevron-down"} size={16} color={Colors.dark.textSecondary} />
+          </TouchableOpacity>
+          {openSections.verification ? (
+            <View style={styles.foldBody}>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>Verification identite</Text>
@@ -777,6 +859,9 @@ function LoggedInProfile({
             )}
           </TouchableOpacity>
         </View>
+            </View>
+          ) : null}
+        </View>
 
         {/* Section Avis */}
         {reviews && reviews.length > 0 && (
@@ -798,13 +883,19 @@ function LoggedInProfile({
           </View>
         )}
 
-        {/* Section Mes trajets / Mes colis */}
         {isListLoading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={Colors.dark.primary} />
           </View>
         ) : (
           <>
+            <View style={styles.foldSection}>
+              <TouchableOpacity style={styles.foldHeader} onPress={() => toggleSection("trips")} activeOpacity={0.85}>
+                <Text style={styles.foldTitle}>Trajets</Text>
+                <Ionicons name={openSections.trips ? "chevron-up" : "chevron-down"} size={16} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+              {openSections.trips ? (
+                <View style={styles.foldBody}>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>
                 Mes trajets ({myTrips?.length ?? 0})
@@ -829,14 +920,6 @@ function LoggedInProfile({
                   >
                     <View>
                       <TripCard trip={trip as any} />
-                      <View style={styles.inlineActionsRow}>
-                        <TouchableOpacity style={styles.inlineEditButton} onPress={() => handleEditTrip(String(trip._id))}>
-                          <Text style={styles.inlineEditText}>Modifier</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.inlineDeleteButton} onPress={() => handleDeleteTrip(String(trip._id))}>
-                          <Text style={styles.inlineDeleteText}>Supprimer</Text>
-                        </TouchableOpacity>
-                      </View>
                     </View>
                   </SwipeActionRow>
                 ))
@@ -846,7 +929,17 @@ function LoggedInProfile({
                 </Text>
               )}
             </View>
+                </View>
+              ) : null}
+            </View>
 
+            <View style={styles.foldSection}>
+              <TouchableOpacity style={styles.foldHeader} onPress={() => toggleSection("parcels")} activeOpacity={0.85}>
+                <Text style={styles.foldTitle}>Colis</Text>
+                <Ionicons name={openSections.parcels ? "chevron-up" : "chevron-down"} size={16} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+              {openSections.parcels ? (
+                <View style={styles.foldBody}>
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>
                 Mes colis ({myParcels?.length ?? 0})
@@ -871,14 +964,6 @@ function LoggedInProfile({
                   >
                     <View>
                       <ParcelCard parcel={parcel as any} />
-                      <View style={styles.inlineActionsRow}>
-                        <TouchableOpacity style={styles.inlineEditButton} onPress={() => handleEditParcel(String(parcel._id))}>
-                          <Text style={styles.inlineEditText}>Modifier</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.inlineDeleteButton} onPress={() => handleDeleteParcel(String(parcel._id))}>
-                          <Text style={styles.inlineDeleteText}>Supprimer</Text>
-                        </TouchableOpacity>
-                      </View>
                     </View>
                   </SwipeActionRow>
                 ))
@@ -887,6 +972,9 @@ function LoggedInProfile({
                   Vous navez pas encore envoye de colis
                 </Text>
               )}
+            </View>
+                </View>
+              ) : null}
             </View>
           </>
         )}
@@ -1110,6 +1198,37 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 6,
   },
+  completionWrap: {
+    width: "86%",
+    marginTop: 12,
+    gap: 6,
+  },
+  completionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  completionText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  completionHint: {
+    color: Colors.dark.textSecondary,
+    fontSize: 11,
+    fontFamily: Fonts.sans,
+  },
+  completionTrack: {
+    height: 6,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: Colors.dark.border,
+  },
+  completionBar: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: Colors.dark.success,
+  },
 
   // Scroll
   scrollContent: {
@@ -1118,6 +1237,57 @@ const styles = StyleSheet.create({
   scrollInner: {
     padding: 20,
     paddingBottom: 28,
+  },
+  inlineFeedback: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  inlineFeedbackSuccess: {
+    borderColor: "#14532D",
+    backgroundColor: "#0E2C1D",
+  },
+  inlineFeedbackError: {
+    borderColor: "#7F1D1D",
+    backgroundColor: "#3F1D21",
+  },
+  inlineFeedbackInfo: {
+    borderColor: "#1E3A8A",
+    backgroundColor: "#1D2A47",
+  },
+  inlineFeedbackText: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  foldSection: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  foldHeader: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  foldTitle: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  foldBody: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
 
   // Sections

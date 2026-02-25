@@ -128,10 +128,15 @@ export default function StartTripScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Precedent</Text>
+          <Text style={styles.backButtonText}>Retour accueil</Text>
         </TouchableOpacity>
 
         <Text style={styles.title}>Demarrer un trajet</Text>

@@ -44,9 +44,9 @@ export default function ActiveTripMatchesScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Precedent</Text>
+        <Text style={styles.backButtonText}>Retour accueil</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Colis compatibles</Text>

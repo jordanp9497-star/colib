@@ -9,8 +9,14 @@ export async function openNavigationApp(destination: LatLng) {
   try {
     const canOpenWaze = await Linking.canOpenURL(wazeAppUrl);
     if (canOpenWaze) {
-      await Linking.openURL(wazeWebUrl);
+      await Linking.openURL(wazeAppUrl);
       return "waze" as const;
+    }
+
+    const canOpenWazeWeb = await Linking.canOpenURL(wazeWebUrl);
+    if (canOpenWazeWeb) {
+      await Linking.openURL(wazeWebUrl);
+      return "waze_web" as const;
     }
 
     if (Platform.OS === "android") {

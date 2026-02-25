@@ -1,15 +1,18 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useUser } from "@/context/UserContext";
 import { formatShortAddress } from "@/utils/address";
 
 export default function TripDetailsScreen() {
   const params = useLocalSearchParams<{ tripId?: string }>();
   const tripId = typeof params.tripId === "string" ? params.tripId : undefined;
+  const { userId } = useUser();
 
   const trip = useQuery(api.trips.getById, tripId ? { tripId: tripId as any } : "skip");
+  const removeTrip = useMutation(api.trips.remove);
 
   if (trip === undefined) {
     return (
@@ -29,12 +32,32 @@ export default function TripDetailsScreen() {
 
   const origin = formatShortAddress(trip.originAddress, trip.origin);
   const destination = formatShortAddress(trip.destinationAddress, trip.destination);
+  const isOwner = trip.ownerVisitorId === userId;
+
+  const handleDeleteTrip = () => {
+    Alert.alert("Supprimer l'annonce", "Voulez-vous vraiment supprimer ce trajet ?", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await removeTrip({ tripId: trip._id, ownerVisitorId: userId });
+            Alert.alert("Annonce supprimee", "Votre trajet a ete retire.");
+            router.replace("/(tabs)/profile" as any);
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer ce trajet.");
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Precedent</Text>
+        <Text style={styles.backButtonText}>Retour accueil</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Annonce trajet</Text>
@@ -72,6 +95,20 @@ export default function TripDetailsScreen() {
           <Text style={styles.publisher}>{trip.userName}</Text>
         </View>
       </View>
+
+      {isOwner ? (
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push({ pathname: "/(tabs)/offer", params: { tripId: String(trip._id) } })}
+          >
+            <Text style={styles.editButtonText}>Modifier l&apos;annonce</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteTrip}>
+            <Text style={styles.deleteButtonText}>Supprimer l&apos;annonce</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -149,6 +186,34 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#1E293B",
     fontWeight: "600",
+  },
+  actionsRow: {
+    marginTop: 4,
+    gap: 10,
+  },
+  editButton: {
+    borderRadius: 10,
+    backgroundColor: "#2563EB",
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  deleteButton: {
+    borderRadius: 10,
+    backgroundColor: "#B91C1C",
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
   },
   center: {
     flex: 1,

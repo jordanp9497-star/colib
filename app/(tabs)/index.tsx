@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
@@ -20,8 +19,11 @@ import type { GeocodedAddress } from "@/packages/shared/maps";
 import { useActiveTrip } from "@/context/ActiveTripContext";
 import { ColibLogoMark } from "@/components/branding/ColibLogoMark";
 import { Colors, Fonts, Typography } from "@/constants/theme";
+import { getPersistedItem, getSessionItem, setPersistedItem, setSessionItem } from "@/utils/clientStorage";
 
 const SEARCH_RADIUS_KM = 30;
+const FILTER_STORAGE_KEY = "colib_home_filters_v1";
+const LAST_SEARCH_STORAGE_KEY = "colib_home_last_search_v1";
 
 type TripListItem = {
   _id: string;
@@ -37,6 +39,15 @@ type TripListItem = {
   destinationAddress: { lat: number; lng: number; label?: string; city?: string; postalCode?: string };
   windowStartTs?: number;
   status: string;
+};
+
+type PersistedSearch = {
+  originZone: GeocodedAddress | null;
+  destinationZone: GeocodedAddress | null;
+  dateValue: string;
+  showAdvancedFilters: boolean;
+  searchedAt: number;
+  resultCount: number;
 };
 
 function toRadians(value: number) {
@@ -75,23 +86,68 @@ export default function TripsScreen() {
   const [results, setResults] = useState<TripListItem[]>([]);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [isHydratingFilters, setIsHydratingFilters] = useState(true);
+  const [lastSearch, setLastSearch] = useState<PersistedSearch | null>(null);
 
   const publishedTrips = useMemo(
     () => (trips ?? []).filter((trip) => trip.status === "published"),
     [trips]
   );
 
-  const handleSearch = () => {
-    if (!destinationZone) {
+  useEffect(() => {
+    let mounted = true;
+
+    const hydrate = async () => {
+      try {
+        const persistedFilters = await getPersistedItem(FILTER_STORAGE_KEY);
+        if (persistedFilters && mounted) {
+          const parsed = JSON.parse(persistedFilters) as Partial<PersistedSearch>;
+          setOriginZone(parsed.originZone ?? null);
+          setDestinationZone(parsed.destinationZone ?? null);
+          setDateValue(parsed.dateValue ?? "");
+          setShowAdvancedFilters(Boolean(parsed.showAdvancedFilters || parsed.originZone || parsed.dateValue));
+        }
+
+        const persistedSessionSearch = getSessionItem(LAST_SEARCH_STORAGE_KEY);
+        const persistedSearch = persistedSessionSearch ?? (await getPersistedItem(LAST_SEARCH_STORAGE_KEY));
+        if (persistedSearch && mounted) {
+          setLastSearch(JSON.parse(persistedSearch) as PersistedSearch);
+        }
+      } catch {
+        if (!mounted) return;
+      } finally {
+        if (mounted) setIsHydratingFilters(false);
+      }
+    };
+
+    void hydrate();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const runSearch = async ({
+    nextOriginZone,
+    nextDestinationZone,
+    nextDateValue,
+    nextShowAdvancedFilters,
+  }: {
+    nextOriginZone: GeocodedAddress | null;
+    nextDestinationZone: GeocodedAddress | null;
+    nextDateValue: string;
+    nextShowAdvancedFilters: boolean;
+  }) => {
+    if (!nextDestinationZone) {
       Alert.alert("Destination requise", "Ajoutez une zone d'arrivee pour lancer la recherche.");
       return;
     }
 
-    const dayWindow = dateValue.trim()
-      ? buildDayWindowTimestamps(dateValue.trim())
+    const dayWindow = nextDateValue.trim()
+      ? buildDayWindowTimestamps(nextDateValue.trim())
       : null;
 
-    if (dateValue.trim() && !dayWindow) {
+    if (nextDateValue.trim() && !dayWindow) {
       Alert.alert("Date invalide", "Utilisez le format JJ/MM/AAAA ou laissez vide.");
       return;
     }
@@ -99,16 +155,16 @@ export default function TripsScreen() {
     const filtered = publishedTrips.filter((trip) => {
       const arrivalDistance = haversineKm(
         { lat: trip.destinationAddress.lat, lng: trip.destinationAddress.lng },
-        { lat: destinationZone.lat, lng: destinationZone.lng }
+        { lat: nextDestinationZone.lat, lng: nextDestinationZone.lng }
       );
       if (arrivalDistance > SEARCH_RADIUS_KM) {
         return false;
       }
 
-      if (originZone) {
+      if (nextOriginZone) {
         const departureDistance = haversineKm(
           { lat: trip.originAddress.lat, lng: trip.originAddress.lng },
-          { lat: originZone.lat, lng: originZone.lng }
+          { lat: nextOriginZone.lat, lng: nextOriginZone.lng }
         );
         if (departureDistance > SEARCH_RADIUS_KM) {
           return false;
@@ -126,9 +182,47 @@ export default function TripsScreen() {
 
     setResults(filtered);
     setSubmitted(true);
+
+    const persistedPayload: PersistedSearch = {
+      originZone: nextOriginZone,
+      destinationZone: nextDestinationZone,
+      dateValue: nextDateValue,
+      showAdvancedFilters: nextShowAdvancedFilters,
+      searchedAt: Date.now(),
+      resultCount: filtered.length,
+    };
+
+    setLastSearch(persistedPayload);
+    await setPersistedItem(FILTER_STORAGE_KEY, JSON.stringify(persistedPayload));
+    await setPersistedItem(LAST_SEARCH_STORAGE_KEY, JSON.stringify(persistedPayload));
+    setSessionItem(LAST_SEARCH_STORAGE_KEY, JSON.stringify(persistedPayload));
+  };
+
+  const handleSearch = async () => {
+    await runSearch({
+      nextOriginZone: originZone,
+      nextDestinationZone: destinationZone,
+      nextDateValue: dateValue,
+      nextShowAdvancedFilters: showAdvancedFilters,
+    });
+  };
+
+  const handleRelaunchSearch = async () => {
+    if (!lastSearch) return;
+    setOriginZone(lastSearch.originZone);
+    setDestinationZone(lastSearch.destinationZone);
+    setDateValue(lastSearch.dateValue);
+    setShowAdvancedFilters(lastSearch.showAdvancedFilters);
+    await runSearch({
+      nextOriginZone: lastSearch.originZone,
+      nextDestinationZone: lastSearch.destinationZone,
+      nextDateValue: lastSearch.dateValue,
+      nextShowAdvancedFilters: lastSearch.showAdvancedFilters,
+    });
   };
 
   const listData = submitted ? results : [];
+  const isIdleListState = viewMode === "list" && !submitted;
 
   return (
     <View style={styles.container}>
@@ -144,15 +238,15 @@ export default function TripsScreen() {
         </View>
       </View>
 
-      <View style={styles.searchContainerWrap}>
-      <View style={styles.searchContainer}>
-        {router.canGoBack() ? (
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-            <Text style={styles.backButtonText}>Precedent</Text>
-          </TouchableOpacity>
-        ) : null}
-
+      <View style={[styles.searchContainerWrap, isIdleListState && styles.searchContainerWrapIdle]}>
+      <View style={styles.tripAssistCard}>
+        <View style={styles.tripAssistHeader}>
+          <Ionicons name="navigate-circle-outline" size={18} color={Colors.dark.primary} />
+          <Text style={styles.tripAssistTitle}>Mode conducteur</Text>
+        </View>
+        <Text style={styles.tripAssistText}>
+          Demarrez un trajet avec Waze et analysez automatiquement les colis sur votre chemin.
+        </Text>
         <TouchableOpacity
           style={[styles.primaryAction, activeSession && styles.primaryActionDisabled]}
           onPress={() => router.push("/trip/start" as any)}
@@ -161,9 +255,18 @@ export default function TripsScreen() {
         >
           <Ionicons name={activeSession ? "checkmark-circle-outline" : "play-circle-outline"} size={17} color={Colors.dark.text} />
           <Text style={styles.primaryActionText}>
-            {activeSession ? "Trajet actif en cours" : "Demarrer un trajet"}
+            {activeSession ? "Trajet actif en cours" : "Demarrer un trajet avec Waze"}
           </Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchContainer}>
+        {router.canGoBack() ? (
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+            <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
+            <Text style={styles.backButtonText}>Retour accueil</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <AddressAutocompleteInput
           label="Destination"
@@ -196,9 +299,16 @@ export default function TripsScreen() {
           </>
         ) : null}
 
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch} activeOpacity={0.9}>
+        <TouchableOpacity style={styles.searchButton} onPress={() => void handleSearch()} activeOpacity={0.9}>
           <Text style={styles.searchButtonText}>Rechercher des trajets</Text>
         </TouchableOpacity>
+
+        {lastSearch ? (
+          <TouchableOpacity style={styles.relaunchButton} onPress={() => void handleRelaunchSearch()} activeOpacity={0.9}>
+            <Ionicons name="refresh-outline" size={14} color={Colors.dark.text} />
+            <Text style={styles.relaunchButtonText}>Relancer la derniere recherche</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.viewModeRow}>
           <TouchableOpacity
@@ -217,9 +327,15 @@ export default function TripsScreen() {
       </View>
       </View>
 
-      {trips === undefined ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.dark.primary} />
+      {trips === undefined || isHydratingFilters ? (
+        <View style={styles.skeletonList}>
+          {[0, 1, 2].map((row) => (
+            <View key={`skeleton-${row}`} style={styles.skeletonCard}>
+              <View style={[styles.skeletonLine, styles.skeletonLineWide]} />
+              <View style={[styles.skeletonLine, styles.skeletonLineMedium]} />
+              <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+            </View>
+          ))}
         </View>
       ) : viewMode === "map" ? (
         <View style={styles.center}>
@@ -231,28 +347,32 @@ export default function TripsScreen() {
           </TouchableOpacity>
         </View>
       ) : listData.length > 0 ? (
-        <FlatList
-          data={listData}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={0.86} onPress={() => router.push(`/trip/${item._id}` as any)}>
-              <TripCard trip={item} />
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
+        <>
+          <View style={styles.resultsMetaWrap}>
+            <Text style={styles.resultsMetaText}>{listData.length} trajets trouves</Text>
+          </View>
+          <FlatList
+            data={listData}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <TouchableOpacity activeOpacity={0.86} onPress={() => router.push(`/trip/${item._id}` as any)}>
+                <TripCard trip={item} />
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+          />
+        </>
+      ) : submitted ? (
         <View style={styles.center}>
+          <Text style={styles.resultsMetaText}>0 trajet trouve</Text>
           <Ionicons name="car-outline" size={24} color={Colors.dark.textSecondary} />
-          <Text style={styles.emptyTitle}>{submitted ? "Aucun trajet trouve" : "Lancez une recherche"}</Text>
+          <Text style={styles.emptyTitle}>Aucun trajet trouve</Text>
           <Text style={styles.emptyText}>
-            {submitted
-              ? "Elargissez la zone ou retirez les filtres pour voir plus d'annonces."
-              : "Ajoutez une destination, puis lancez la recherche."}
+            Elargissez la zone ou retirez les filtres pour voir plus d&apos;annonces.
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -298,6 +418,8 @@ const styles = StyleSheet.create({
     textTransform: "none",
   },
   searchContainer: {
+    width: "100%",
+    maxWidth: 680,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: Colors.dark.surface,
@@ -311,6 +433,40 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 8,
     alignItems: "center",
+  },
+  searchContainerWrapIdle: {
+    flex: 1,
+    justifyContent: "center",
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  tripAssistCard: {
+    width: "100%",
+    maxWidth: 680,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+    gap: 8,
+  },
+  tripAssistHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tripAssistTitle: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  tripAssistText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
   backButton: {
     alignSelf: "flex-start",
@@ -327,6 +483,8 @@ const styles = StyleSheet.create({
   },
   backButtonText: { fontSize: 12, fontFamily: Fonts.sansSemiBold, color: Colors.dark.textSecondary },
   primaryAction: {
+    width: "100%",
+    alignSelf: "center",
     backgroundColor: Colors.dark.primary,
     borderRadius: 12,
     alignItems: "center",
@@ -386,6 +544,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.sansSemiBold,
   },
+  relaunchButton: {
+    marginTop: -4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  relaunchButtonText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
   viewModeRow: {
     flexDirection: "row",
     gap: 8,
@@ -422,8 +597,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts.sansSemiBold,
   },
+  resultsMetaWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
+  },
+  resultsMetaText: {
+    color: Colors.dark.success,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
   list: {
     padding: 20,
+  },
+  skeletonList: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 12,
+  },
+  skeletonCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
+    padding: 14,
+    gap: 10,
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  skeletonLineWide: {
+    width: "82%",
+  },
+  skeletonLineMedium: {
+    width: "62%",
+  },
+  skeletonLineShort: {
+    width: "45%",
   },
   center: {
     flex: 1,
