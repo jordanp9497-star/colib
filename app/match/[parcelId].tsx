@@ -153,7 +153,7 @@ export default function ParcelMatchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16, paddingTop: 56 },
+  container: { flex: 1, backgroundColor: "#0F141A", padding: 16, paddingTop: 56 },
   title: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
   subtitle: { marginTop: 4, marginBottom: 12, fontSize: 13, color: "#64748B" },
   sortRow: { flexDirection: "row", gap: 8, marginVertical: 12, flexWrap: "wrap" },
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
   },
   backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   sortChip: {
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   list: { paddingTop: 12, gap: 8, paddingBottom: 30 },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderColor: "#E2E8F0",
     borderWidth: 1,
     borderRadius: 12,
@@ -201,11 +201,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 12,
     padding: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   emptyTitle: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
   emptyText: { marginTop: 6, fontSize: 13, color: "#64748B" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0F141A" },
 });

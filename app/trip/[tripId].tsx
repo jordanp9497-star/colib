@@ -79,7 +79,7 @@ export default function TripDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F141A",
   },
   content: {
     padding: 16,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
   },
   backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   title: {
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 12,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F141A",
   },
   emptyTitle: {
     fontSize: 18,

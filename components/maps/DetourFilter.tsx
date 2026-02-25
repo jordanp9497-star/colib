@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Colors, Fonts } from "@/constants/theme";
 
 const OPTIONS = [10, 20, 30] as const;
 
@@ -32,23 +33,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: "#EEF2FF",
-    borderColor: "#C7D2FE",
+    backgroundColor: Colors.dark.primaryLight,
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   chipActive: {
-    backgroundColor: "#4338CA",
-    borderColor: "#4338CA",
+    backgroundColor: Colors.dark.primary,
+    borderColor: Colors.dark.primary,
   },
   chipText: {
-    color: "#3730A3",
+    color: Colors.dark.text,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   chipTextActive: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
   },
 });

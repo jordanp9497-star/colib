@@ -175,7 +175,8 @@ export default defineSchema({
       v.literal("reservation_request"),
       v.literal("reservation_accepted"),
       v.literal("payment_required"),
-      v.literal("new_match_for_trip")
+      v.literal("new_match_for_trip"),
+      v.literal("trip_session_matches")
     ),
     title: v.string(),
     message: v.string(),
@@ -187,6 +188,31 @@ export default defineSchema({
   })
     .index("by_recipient_createdAt", ["recipientVisitorId", "createdAt"])
     .index("by_recipient_readAt", ["recipientVisitorId", "readAt"]),
+
+  tripSessions: defineTable({
+    userId: v.string(),
+    origin: addressValidator,
+    destination: addressValidator,
+    deviationMaxMinutes: v.union(v.literal(5), v.literal(10), v.literal(20), v.literal(30)),
+    opportunitiesEnabled: v.boolean(),
+    status: v.union(v.literal("ACTIVE"), v.literal("STOPPED"), v.literal("EXPIRED")),
+    startedAt: v.number(),
+    endedAt: v.optional(v.number()),
+    lastLocation: v.optional(
+      v.object({
+        lat: v.number(),
+        lng: v.number(),
+        timestamp: v.number(),
+      })
+    ),
+    lastNotifiedAt: v.optional(v.number()),
+    matchesCountCache: v.number(),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_user_status", ["userId", "status"])
+    .index("by_user_startedAt", ["userId", "startedAt"])
+    .index("by_status_updated", ["status", "updatedAt"]),
 
   mapsCache: defineTable({
     key: v.string(),

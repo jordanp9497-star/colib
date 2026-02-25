@@ -6,10 +6,18 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "colib",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Colib utilise votre position pour demarrer et suivre votre trajet.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Colib peut suivre votre trajet en arriere-plan pour detecter des opportunites colis.",
+        "LSApplicationQueriesSchemes": [
+          "waze",
+          "google.navigation"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,13 +41,29 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#0F141A",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#0F141A"
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Colib utilise votre position pour demarrer et suivre votre trajet.",
+          "locationAlwaysAndWhenInUsePermission": "Colib suit votre trajet en arriere-plan pour proposer des colis compatibles.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#2F80ED"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

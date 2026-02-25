@@ -10,6 +10,7 @@ import {
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
 import { formatShortAddress } from "@/utils/address";
+import { Colors, Fonts } from "@/constants/theme";
 
 interface Props {
   label: string;
@@ -39,7 +40,7 @@ export function AddressAutocompleteInput({ label, value, onChange, placeholder }
           style={styles.input}
           value={input}
           placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.dark.textSecondary}
           onFocus={() => setOpen(true)}
           onChangeText={(text) => {
             setInput(text);
@@ -64,7 +65,7 @@ export function AddressAutocompleteInput({ label, value, onChange, placeholder }
 
       {loading ? (
         <View style={styles.metaRow}>
-          <ActivityIndicator color="#6366F1" size="small" />
+          <ActivityIndicator color={Colors.dark.primary} size="small" />
           <Text style={styles.metaText}>Recherche adresses...</Text>
         </View>
       ) : null}
@@ -106,19 +107,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    color: Colors.dark.textSecondary,
     marginBottom: 6,
+    fontFamily: Fonts.sansSemiBold,
   },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     paddingHorizontal: 14,
     paddingRight: 46,
     paddingVertical: 12,
     fontSize: 15,
-    color: "#1E293B",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sans,
   },
   inputWrap: {
     position: "relative",
@@ -130,44 +133,45 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   clearButtonText: {
-    color: "#334155",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
   },
   selectedHint: {
     marginTop: 6,
-    color: "#166534",
+    color: Colors.dark.success,
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   suggestionBox: {
     marginTop: 4,
     borderRadius: 10,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.surface,
     maxHeight: 180,
   },
   suggestionRow: {
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: Colors.dark.border,
     borderBottomWidth: 1,
   },
   suggestionMain: {
     fontSize: 14,
-    color: "#0F172A",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   suggestionSecondary: {
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginTop: 2,
+    fontFamily: Fonts.sans,
   },
   metaRow: {
     marginTop: 6,
@@ -176,12 +180,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   metaText: {
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     fontSize: 12,
+    fontFamily: Fonts.sans,
   },
   errorText: {
-    color: "#B91C1C",
+    color: Colors.dark.error,
     marginTop: 6,
     fontSize: 12,
+    fontFamily: Fonts.sans,
   },
 });

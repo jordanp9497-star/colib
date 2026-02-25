@@ -22,6 +22,8 @@ import ParcelCard from "@/components/ParcelCard";
 import StarRating from "@/components/profile/StarRating";
 import VerificationBadge from "@/components/profile/VerificationBadge";
 import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
+import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
+import { Colors, Fonts } from "@/constants/theme";
 
 export default function ProfileScreen() {
   const { userId, isLoggedIn, isLoading, register, user } = useUser();
@@ -29,7 +31,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
       </View>
     );
   }
@@ -130,7 +132,7 @@ function RegistrationFlow({
         <TextInput
           style={styles.input}
           placeholder="Votre nom"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.dark.textSecondary}
           value={name}
           onChangeText={setName}
           autoFocus
@@ -138,7 +140,7 @@ function RegistrationFlow({
         <TextInput
           style={styles.input}
           placeholder="Telephone (optionnel)"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.dark.textSecondary}
           value={phone}
           onChangeText={setPhone}
           keyboardType="phone-pad"
@@ -157,7 +159,7 @@ function RegistrationFlow({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.avatarPlaceholder}>
-        <Ionicons name="mail" size={48} color="#6366F1" />
+          <Ionicons name="mail" size={48} color={Colors.dark.primary} />
       </View>
       <Text style={styles.authTitle}>Verifiez votre email</Text>
       <Text style={styles.authText}>
@@ -170,7 +172,7 @@ function RegistrationFlow({
           <TextInput
             style={styles.input}
             placeholder="votre@email.com"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -189,7 +191,7 @@ function RegistrationFlow({
           <TextInput
             style={styles.input}
             placeholder="Code a 6 chiffres"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={verificationCode}
             onChangeText={(t) => setVerificationCode(t.replace(/[^0-9]/g, "").slice(0, 6))}
             keyboardType="number-pad"
@@ -238,9 +240,7 @@ function LoggedInProfile({
 }) {
   const myTrips = useQuery(api.trips.getByUser, { userId });
   const myParcels = useQuery(api.parcels.getByUser, { userId });
-  const notifications = useQuery(api.notifications.listForUser, { userId });
   const reviews = useQuery(api.reviews.getForUser, { revieweeId: userId });
-  const shipments = useQuery(api.shipments.listForUser, { requesterVisitorId: userId, limit: 100 });
   const compliance = useQuery(api.compliance.getCarrierCompliance, { carrierVisitorId: userId });
   const { logout } = useUser();
 
@@ -250,8 +250,6 @@ function LoggedInProfile({
   const submitCarrierDocuments = useMutation(api.compliance.submitCarrierDocuments);
   const removeTrip = useMutation(api.trips.remove);
   const removeParcel = useMutation(api.parcels.remove);
-  const acceptReservationRequest = useMutation(api.matches.acceptReservationRequest);
-  const markNotificationAsRead = useMutation(api.notifications.markAsRead);
 
   const [uploading, setUploading] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
@@ -528,34 +526,21 @@ function LoggedInProfile({
     ]);
   };
 
-  const handleAcceptReservation = async (matchId: string) => {
-    try {
-      await acceptReservationRequest({
-        matchId: matchId as any,
-        parcelOwnerVisitorId: userId,
-      });
-      Alert.alert("Transport confirme", "Le transporteur a ete notifie. Paiement requis en BETA.");
-    } catch {
-      Alert.alert("Erreur", "Impossible d accepter cette demande pour le moment.");
-    }
-  };
-
-  const handleMarkNotificationRead = async (notificationId: string) => {
-    try {
-      await markNotificationAsRead({ notificationId: notificationId as any, userId });
-    } catch {
-      // Ignore read errors in UI.
-    }
-  };
-
-  const handleOpenShipment = (shipmentId: string) => {
-    router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId } });
-  };
-
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.profileHeader}>
+        {router.canGoBack() ? (
+          <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={16} color={Colors.dark.text} />
+            <Text style={styles.headerBackButtonText}>Precedent</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity style={styles.settingsButton} onPress={() => router.push("/settings" as any)}>
+          <Ionicons name="settings-outline" size={18} color={Colors.dark.text} />
+        </TouchableOpacity>
+
         <TouchableOpacity onPress={handlePickProfilePhoto} disabled={uploading}>
           {user.profilePhotoUrl ? (
             <Image
@@ -598,13 +583,16 @@ function LoggedInProfile({
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews
+        scrollEventThrottle={16}
       >
         {/* Section Email */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Email</Text>
           {user.emailVerified && user.email ? (
             <View style={styles.infoRow}>
-              <Ionicons name="mail" size={18} color="#6366F1" />
+              <Ionicons name="mail" size={18} color={Colors.dark.primary} />
               <Text style={styles.infoText}>{user.email}</Text>
               <VerificationBadge type="email_verified" />
             </View>
@@ -613,7 +601,7 @@ function LoggedInProfile({
               style={styles.outlineButton}
               onPress={() => setShowEmailForm(true)}
             >
-              <Ionicons name="mail-outline" size={18} color="#6366F1" />
+              <Ionicons name="mail-outline" size={18} color={Colors.dark.primary} />
               <Text style={styles.outlineButtonText}>Ajouter un email</Text>
             </TouchableOpacity>
           ) : (
@@ -623,7 +611,7 @@ function LoggedInProfile({
                   <TextInput
                     style={styles.input}
                     placeholder="votre@email.com"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={email}
                     onChangeText={setEmail}
                     keyboardType="email-address"
@@ -642,7 +630,7 @@ function LoggedInProfile({
                   <TextInput
                     style={styles.input}
                     placeholder="Code a 6 chiffres"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={Colors.dark.textSecondary}
                     value={verificationCode}
                     onChangeText={(t) =>
                       setVerificationCode(t.replace(/[^0-9]/g, "").slice(0, 6))
@@ -710,13 +698,13 @@ function LoggedInProfile({
             disabled={uploadingId}
           >
             {uploadingId ? (
-              <ActivityIndicator color="#6366F1" size="small" />
+              <ActivityIndicator color={Colors.dark.primary} size="small" />
             ) : (
               <>
                 <Ionicons
                   name={user.idCardPhotoId ? "checkmark-circle" : "id-card-outline"}
                   size={20}
-                  color={user.idCardPhotoId ? "#22C55E" : "#6366F1"}
+                  color={user.idCardPhotoId ? Colors.dark.success : Colors.dark.primary}
                 />
                 <Text style={styles.docButtonText}>
                   {user.idCardPhotoId
@@ -733,13 +721,13 @@ function LoggedInProfile({
             disabled={uploadingCg}
           >
             {uploadingCg ? (
-              <ActivityIndicator color="#6366F1" size="small" />
+              <ActivityIndicator color={Colors.dark.primary} size="small" />
             ) : (
               <>
                 <Ionicons
                   name={user.carteGrisePhotoId ? "checkmark-circle" : "car-outline"}
                   size={20}
-                  color={user.carteGrisePhotoId ? "#22C55E" : "#6366F1"}
+                  color={user.carteGrisePhotoId ? Colors.dark.success : Colors.dark.primary}
                 />
                 <Text style={styles.docButtonText}>
                   {user.carteGrisePhotoId
@@ -753,7 +741,7 @@ function LoggedInProfile({
           <TextInput
             style={styles.input}
             placeholder="Expiration piece identite (YYYY-MM-DD)"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={idCardExpiryInput}
             onChangeText={setIdCardExpiryInput}
             autoCapitalize="none"
@@ -762,7 +750,7 @@ function LoggedInProfile({
           <TextInput
             style={styles.input}
             placeholder="Expiration carte grise (YYYY-MM-DD)"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={carteGriseExpiryInput}
             onChangeText={setCarteGriseExpiryInput}
             autoCapitalize="none"
@@ -771,7 +759,7 @@ function LoggedInProfile({
           <TextInput
             style={styles.input}
             placeholder="Numero de plaque"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             value={vehiclePlate}
             onChangeText={setVehiclePlate}
             autoCapitalize="characters"
@@ -810,71 +798,10 @@ function LoggedInProfile({
           </View>
         )}
 
-        {/* Section Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
-            Notifications ({notifications?.length ?? 0})
-          </Text>
-          {!notifications ? (
-            <ActivityIndicator size="small" color="#6366F1" />
-          ) : notifications.length === 0 ? (
-            <Text style={styles.emptySection}>Aucune notification pour le moment</Text>
-          ) : (
-            notifications.map((notification) => {
-              const canAcceptReservation =
-                notification.type === "reservation_request" &&
-                notification.matchId &&
-                notification.matchStatus === "requested";
-              const linkedShipment =
-                notification.matchId && shipments
-                  ? shipments.find((shipment) => String(shipment.matchId) === String(notification.matchId))
-                  : null;
-
-              return (
-                <View
-                  key={notification._id}
-                  style={[styles.notificationCard, !notification.readAt && styles.notificationUnread]}
-                >
-                  <Text style={styles.notificationTitle}>{notification.title}</Text>
-                  <Text style={styles.notificationMessage}>{notification.message}</Text>
-                  <View style={styles.notificationActions}>
-                    {canAcceptReservation ? (
-                      <TouchableOpacity
-                        style={styles.acceptButton}
-                        onPress={() => handleAcceptReservation(String(notification.matchId))}
-                      >
-                        <Text style={styles.acceptButtonText}>Accepter le transport</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    {linkedShipment ? (
-                      <TouchableOpacity
-                        style={styles.trackButton}
-                        onPress={() => handleOpenShipment(String(linkedShipment._id))}
-                      >
-                        <Text style={styles.trackButtonText}>Ouvrir suivi</Text>
-                      </TouchableOpacity>
-                    ) : null}
-
-                    {!notification.readAt ? (
-                      <TouchableOpacity
-                        style={styles.readButton}
-                        onPress={() => handleMarkNotificationRead(String(notification._id))}
-                      >
-                        <Text style={styles.readButtonText}>Marquer lu</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
-
         {/* Section Mes trajets / Mes colis */}
         {isListLoading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" color="#6366F1" />
+            <ActivityIndicator size="large" color={Colors.dark.primary} />
           </View>
         ) : (
           <>
@@ -882,14 +809,36 @@ function LoggedInProfile({
               <Text style={styles.sectionLabel}>
                 Mes trajets ({myTrips?.length ?? 0})
               </Text>
+              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver.</Text>
               {myTrips && myTrips.length > 0 ? (
                 myTrips.map((trip) => (
-                  <TripCard
+                  <SwipeActionRow
                     key={trip._id}
-                    trip={trip as any}
-                    onEdit={() => handleEditTrip(String(trip._id))}
-                    onDelete={() => handleDeleteTrip(String(trip._id))}
-                  />
+                    actions={[
+                      {
+                        label: "Modifier",
+                        color: "#4338CA",
+                        onPress: () => handleEditTrip(String(trip._id)),
+                      },
+                      {
+                        label: "Archiver",
+                        color: "#B91C1C",
+                        onPress: () => handleDeleteTrip(String(trip._id)),
+                      },
+                    ]}
+                  >
+                    <View>
+                      <TripCard trip={trip as any} />
+                      <View style={styles.inlineActionsRow}>
+                        <TouchableOpacity style={styles.inlineEditButton} onPress={() => handleEditTrip(String(trip._id))}>
+                          <Text style={styles.inlineEditText}>Modifier</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.inlineDeleteButton} onPress={() => handleDeleteTrip(String(trip._id))}>
+                          <Text style={styles.inlineDeleteText}>Supprimer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </SwipeActionRow>
                 ))
               ) : (
                 <Text style={styles.emptySection}>
@@ -902,14 +851,36 @@ function LoggedInProfile({
               <Text style={styles.sectionLabel}>
                 Mes colis ({myParcels?.length ?? 0})
               </Text>
+              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver.</Text>
               {myParcels && myParcels.length > 0 ? (
                 myParcels.map((parcel) => (
-                  <ParcelCard
+                  <SwipeActionRow
                     key={parcel._id}
-                    parcel={parcel as any}
-                    onEdit={() => handleEditParcel(String(parcel._id))}
-                    onDelete={() => handleDeleteParcel(String(parcel._id))}
-                  />
+                    actions={[
+                      {
+                        label: "Modifier",
+                        color: "#4338CA",
+                        onPress: () => handleEditParcel(String(parcel._id)),
+                      },
+                      {
+                        label: "Archiver",
+                        color: "#B91C1C",
+                        onPress: () => handleDeleteParcel(String(parcel._id)),
+                      },
+                    ]}
+                  >
+                    <View>
+                      <ParcelCard parcel={parcel as any} />
+                      <View style={styles.inlineActionsRow}>
+                        <TouchableOpacity style={styles.inlineEditButton} onPress={() => handleEditParcel(String(parcel._id))}>
+                          <Text style={styles.inlineEditText}>Modifier</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.inlineDeleteButton} onPress={() => handleDeleteParcel(String(parcel._id))}>
+                          <Text style={styles.inlineDeleteText}>Supprimer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </SwipeActionRow>
                 ))
               ) : (
                 <Text style={styles.emptySection}>
@@ -926,7 +897,7 @@ function LoggedInProfile({
           <Text style={styles.logoutText}>Se deconnecter</Text>
         </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
@@ -937,12 +908,13 @@ function LoggedInProfile({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.background,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: Colors.dark.background,
   },
 
   // Auth / Registration
@@ -951,54 +923,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.background,
   },
   avatarPlaceholder: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surface,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   authTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#1E293B",
+    color: Colors.dark.text,
     marginBottom: 8,
+    fontFamily: Fonts.displaySemiBold,
   },
   authText: {
     fontSize: 14,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
+    fontFamily: Fonts.sans,
   },
 
   // Inputs
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#1E293B",
+    color: Colors.dark.text,
     width: "100%",
     marginBottom: 12,
+    fontFamily: Fonts.sans,
   },
   codeLabel: {
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
     textAlign: "center",
+    fontFamily: Fonts.sans,
   },
 
   // Buttons
   primaryButton: {
-    backgroundColor: "#6366F1",
+    backgroundColor: Colors.dark.primary,
     borderRadius: 12,
     paddingVertical: 14,
     width: "100%",
@@ -1006,12 +981,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   smallPrimaryButton: {
-    backgroundColor: "#6366F1",
+    backgroundColor: Colors.dark.primary,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
@@ -1027,9 +1002,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   linkText: {
-    color: "#6366F1",
+    color: Colors.dark.primary,
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: Fonts.sans,
     textAlign: "center",
   },
   outlineButton: {
@@ -1037,16 +1012,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#6366F1",
+    borderColor: Colors.dark.primary,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderStyle: "dashed",
   },
   outlineButtonText: {
-    color: "#6366F1",
+    color: Colors.dark.primary,
     fontSize: 14,
-    fontWeight: "500",
+    fontFamily: Fonts.sans,
   },
 
   // Profile Header
@@ -1054,7 +1029,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: "#6366F1",
+    backgroundColor: Colors.dark.surface,
+    position: "relative",
+  },
+  settingsButton: {
+    position: "absolute",
+    right: 16,
+    top: 56,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.22)",
+  },
+  headerBackButton: {
+    position: "absolute",
+    left: 16,
+    top: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    backgroundColor: "rgba(15, 23, 42, 0.22)",
+  },
+  headerBackButtonText: {
+    fontSize: 11,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   profilePhoto: {
     width: 80,
@@ -1067,7 +1075,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#4F46E5",
+    backgroundColor: Colors.dark.primary,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
@@ -1075,14 +1083,14 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 30,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
   },
   cameraIcon: {
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#1E293B",
+    backgroundColor: Colors.dark.surfaceMuted,
     width: 26,
     height: 26,
     borderRadius: 13,
@@ -1093,9 +1101,9 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 20,
-    fontWeight: "600",
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     marginTop: 10,
+    fontFamily: Fonts.displaySemiBold,
   },
   headerBadges: {
     flexDirection: "row",
@@ -1109,6 +1117,7 @@ const styles = StyleSheet.create({
   },
   scrollInner: {
     padding: 20,
+    paddingBottom: 28,
   },
 
   // Sections
@@ -1123,34 +1132,36 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
+    color: Colors.dark.text,
     marginBottom: 10,
+    fontFamily: Fonts.sansSemiBold,
   },
   sectionDescription: {
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     lineHeight: 18,
     marginBottom: 12,
+    fontFamily: Fonts.sans,
   },
   complianceCard: {
-    backgroundColor: "#EFF6FF",
+    backgroundColor: Colors.dark.surfaceMuted,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: Colors.dark.primary,
     padding: 10,
     marginBottom: 12,
   },
   complianceTitle: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#1E3A8A",
+    color: Colors.dark.primary,
     marginBottom: 4,
+    fontFamily: Fonts.sansSemiBold,
   },
   complianceLine: {
     fontSize: 12,
-    color: "#1E40AF",
+    color: Colors.dark.textSecondary,
     marginBottom: 2,
+    fontFamily: Fonts.sans,
   },
   infoRow: {
     flexDirection: "row",
@@ -1159,8 +1170,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 15,
-    color: "#1E293B",
+    color: Colors.dark.text,
     flex: 1,
+    fontFamily: Fonts.sans,
   },
 
   // Email form
@@ -1177,15 +1189,16 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 14,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   docButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1193,54 +1206,57 @@ const styles = StyleSheet.create({
   },
   docButtonText: {
     fontSize: 14,
-    color: "#1E293B",
-    fontWeight: "500",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sans,
   },
 
   // Reviews
   reviewCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
   },
   reviewComment: {
     fontSize: 13,
-    color: "#1E293B",
+    color: Colors.dark.text,
     marginTop: 6,
     lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
   reviewDate: {
     fontSize: 11,
-    color: "#94A3B8",
+    color: Colors.dark.textSecondary,
     marginTop: 4,
+    fontFamily: Fonts.sans,
   },
 
   // Trips / Parcels
   notificationCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
   },
   notificationUnread: {
-    borderColor: "#A5B4FC",
-    backgroundColor: "#EEF2FF",
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.primaryLight,
   },
   notificationTitle: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#1E293B",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   notificationMessage: {
     marginTop: 4,
     fontSize: 13,
-    color: "#475569",
+    color: Colors.dark.textSecondary,
     lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
   notificationActions: {
     marginTop: 10,
@@ -1249,45 +1265,78 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   acceptButton: {
-    backgroundColor: "#16A34A",
+    backgroundColor: Colors.dark.success,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   acceptButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   readButton: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
   },
   readButtonText: {
-    color: "#334155",
-    fontWeight: "600",
+    color: Colors.dark.text,
     fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   trackButton: {
-    backgroundColor: "#0284C7",
+    backgroundColor: Colors.dark.primary,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   trackButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   emptySection: {
     fontSize: 14,
-    color: "#94A3B8",
+    color: Colors.dark.textSecondary,
     fontStyle: "italic",
     marginBottom: 8,
+    fontFamily: Fonts.sans,
+  },
+  inlineActionsRow: {
+    marginTop: -4,
+    marginBottom: 10,
+    flexDirection: "row",
+    gap: 8,
+  },
+  inlineEditButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.primaryLight,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  inlineEditText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  inlineDeleteButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#402328",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  inlineDeleteText: {
+    color: "#B91C1C",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   // Logout
@@ -1300,8 +1349,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   logoutText: {
-    color: "#EF4444",
+    color: Colors.dark.error,
     fontSize: 15,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
+  },
+  bottomSpacer: {
+    height: 40,
   },
 });

@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
 import type { MapPin } from "@/components/maps/CrossPlatformMap.types";
 import { decodePolyline } from "@/utils/polyline";
+import { Colors, Fonts } from "@/constants/theme";
 
 export default function MapScreen() {
   const { userId } = useUser();
@@ -104,7 +106,7 @@ export default function MapScreen() {
         latitude: parcel.originAddress.lat,
         longitude: parcel.originAddress.lng,
         title: `Colis a recuperer: ${parcel.originAddress.city ?? parcel.origin}`,
-        color: "#EA580C",
+          color: "#F4B740",
         kind: "parcel" as const,
       }));
 
@@ -114,7 +116,7 @@ export default function MapScreen() {
         latitude: activeTrip.originAddress.lat,
         longitude: activeTrip.originAddress.lng,
         title: "Depart trajet",
-        color: "#1D4ED8",
+          color: Colors.dark.primary,
         kind: "trip-origin" as const,
       });
       pins.unshift({
@@ -122,7 +124,7 @@ export default function MapScreen() {
         latitude: activeTrip.destinationAddress.lat,
         longitude: activeTrip.destinationAddress.lng,
         title: "Arrivee trajet",
-        color: "#16A34A",
+          color: Colors.dark.success,
         kind: "trip-destination" as const,
       });
     }
@@ -153,7 +155,7 @@ export default function MapScreen() {
       {
         id: `trip-path-${activeTrip._id}`,
         coordinates: routeCoordinates,
-        color: "#2563EB",
+        color: Colors.dark.primary,
         width: 4,
       },
     ];
@@ -173,7 +175,7 @@ export default function MapScreen() {
   if (myTrips === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#4338CA" size="large" />
+          <ActivityIndicator color={Colors.dark.primary} size="large" />
       </View>
     );
   }
@@ -189,6 +191,13 @@ export default function MapScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {router.canGoBack() ? (
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
+          <Text style={styles.backButtonText}>Precedent</Text>
+        </TouchableOpacity>
+      ) : null}
+
       <Text style={styles.title}>Carte de matching</Text>
       <DetourFilter value={selectedDetour} onChange={handleDetourChange} />
 
@@ -223,7 +232,7 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.background,
   },
   content: {
     padding: 16,
@@ -232,10 +241,24 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 22,
-    color: "#0F172A",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
     marginBottom: 12,
   },
+  backButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    backgroundColor: Colors.dark.surface,
+  },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   mapWrap: {
     marginTop: 12,
     marginBottom: 8,
@@ -244,8 +267,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   overlayTitle: {
-    color: "#0F172A",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 15,
     marginBottom: 6,
   },
@@ -254,8 +277,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   card: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surface,
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -264,41 +287,41 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
     marginBottom: 3,
   },
   cardLine: {
     fontSize: 13,
-    color: "#475569",
+    color: Colors.dark.textSecondary,
   },
   cardMeta: {
     marginTop: 4,
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
   },
   price: {
     marginTop: 6,
     fontSize: 15,
     fontWeight: "700",
-    color: "#4338CA",
+    color: Colors.dark.primary,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.background,
   },
   emptyTitle: {
     fontSize: 18,
-    color: "#0F172A",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
     textAlign: "center",
   },
   emptyText: {
     marginTop: 8,
     fontSize: 14,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     textAlign: "center",
   },
 });

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatShortAddress } from "@/utils/address";
+import { Colors, Fonts } from "@/constants/theme";
 
 interface Trip {
   _id: string;
@@ -25,9 +26,9 @@ interface Trip {
 }
 
 const spaceConfig = {
-  petit: { label: "Petit", color: "#22C55E" },
-  moyen: { label: "Moyen", color: "#F59E0B" },
-  grand: { label: "Grand", color: "#6366F1" },
+  petit: { label: "Petit", color: Colors.dark.success },
+  moyen: { label: "Moyen", color: Colors.dark.warning },
+  grand: { label: "Grand", color: Colors.dark.primary },
 };
 
 export default function TripCard({
@@ -68,7 +69,7 @@ export default function TripCard({
 
       <View style={styles.details}>
         <View style={styles.detailItem}>
-          <Ionicons name="calendar-outline" size={14} color="#64748B" />
+          <Ionicons name="calendar-outline" size={14} color={Colors.dark.textSecondary} />
           <Text style={styles.detailText}>{trip.date}</Text>
         </View>
         <View style={[styles.badge, { backgroundColor: space.color + "20" }]}>
@@ -87,12 +88,12 @@ export default function TripCard({
 
       <View style={styles.footer}>
         <View style={styles.user}>
-          <Ionicons name="person-circle-outline" size={18} color="#64748B" />
+          <Ionicons name="person-circle-outline" size={18} color={Colors.dark.textSecondary} />
           <Text style={styles.userName}>{trip.userName}</Text>
         </View>
         {trip.phone ? (
           <View style={styles.detailItem}>
-            <Ionicons name="call-outline" size={14} color="#64748B" />
+            <Ionicons name="call-outline" size={14} color={Colors.dark.textSecondary} />
             <Text style={styles.detailText}>{trip.phone}</Text>
           </View>
         ) : null}
@@ -118,18 +119,18 @@ export default function TripCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
   },
   routePanel: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.surfaceMuted,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     padding: 10,
     marginBottom: 12,
   },
@@ -150,17 +151,17 @@ const styles = StyleSheet.create({
   },
   routeLabel: {
     fontSize: 11,
-    color: "#64748B",
-    fontWeight: "700",
+    color: Colors.dark.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.3,
     marginBottom: 2,
+    fontFamily: Fonts.sansSemiBold,
   },
   routeAddress: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
+    color: Colors.dark.text,
     flexShrink: 1,
+    fontFamily: Fonts.sansSemiBold,
   },
   details: {
     flexDirection: "row",
@@ -176,7 +177,8 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   badge: {
     paddingHorizontal: 8,
@@ -185,19 +187,20 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   price: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#6366F1",
+    color: Colors.dark.primary,
     marginLeft: "auto",
+    fontFamily: Fonts.sansSemiBold,
   },
   description: {
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginBottom: 8,
     lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
   footer: {
     flexDirection: "row",
@@ -206,7 +209,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
+    borderTopColor: Colors.dark.border,
   },
   user: {
     flexDirection: "row",
@@ -215,9 +218,9 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 13,
-    color: "#64748B",
-    fontWeight: "500",
+    color: Colors.dark.textSecondary,
     maxWidth: 150,
+    fontFamily: Fonts.sans,
   },
   actionsRow: {
     marginTop: 10,
@@ -227,16 +230,16 @@ const styles = StyleSheet.create({
   editButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#4F46E5",
+    borderColor: Colors.dark.primary,
     borderRadius: 8,
     paddingVertical: 8,
     alignItems: "center",
-    backgroundColor: "#EEF2FF",
+    backgroundColor: Colors.dark.primaryLight,
   },
   editButtonText: {
-    color: "#3730A3",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
   },
   deleteButton: {
     flex: 1,

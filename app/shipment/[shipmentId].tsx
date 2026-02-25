@@ -259,7 +259,7 @@ export default function ShipmentDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F141A",
   },
   content: {
     paddingTop: 56,
@@ -278,14 +278,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 4,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
   },
   backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#0F141A",
   },
   title: {
     fontSize: 24,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#161D24",
     borderWidth: 1,
     borderColor: "#CBD5E1",
     borderRadius: 10,

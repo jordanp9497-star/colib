@@ -18,6 +18,9 @@ import { useUser } from "@/context/UserContext";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { buildDayWindowTimestamps, TimeWindowInput } from "@/components/forms/TimeWindowInput";
+import { Colors, Fonts } from "@/constants/theme";
+
+const TOTAL_STEPS = 4;
 
 export default function OfferScreen() {
   const { userId, userName, isLoggedIn } = useUser();
@@ -30,6 +33,7 @@ export default function OfferScreen() {
   const recomputeForTrip = useMutation(api.matches.recomputeForTrip);
   const tripToEdit = useQuery(api.trips.getById, tripId ? { tripId: tripId as any } : "skip");
 
+  const [step, setStep] = useState(1);
   const [originAddress, setOriginAddress] = useState<GeocodedAddress | null>(null);
   const [destinationAddress, setDestinationAddress] = useState<GeocodedAddress | null>(null);
   const [availableSpace, setAvailableSpace] = useState<"petit" | "moyen" | "grand">("moyen");
@@ -38,6 +42,7 @@ export default function OfferScreen() {
   const [basePrice, setBasePrice] = useState("15");
   const [tripDate, setTripDate] = useState("");
   const [maxDetourMinutes, setMaxDetourMinutes] = useState(20);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const resetForm = () => {
     setOriginAddress(null);
@@ -48,6 +53,8 @@ export default function OfferScreen() {
     setBasePrice("15");
     setTripDate("");
     setMaxDetourMinutes(20);
+    setStep(1);
+    setShowAdvanced(false);
   };
 
   const canEditTrip = useMemo(() => {
@@ -96,6 +103,18 @@ export default function OfferScreen() {
     );
   }
 
+  const validateStep = (value: number) => {
+    if (value === 1 && (!originAddress || !destinationAddress)) {
+      Alert.alert("Itineraire incomplet", "Selectionnez depart et arrivee.");
+      return false;
+    }
+    if (value === 2 && !buildDayWindowTimestamps(tripDate)) {
+      Alert.alert("Date invalide", "Renseignez une date valide.");
+      return false;
+    }
+    return true;
+  };
+
   const publishTrip = async () => {
     if (!originAddress || !destinationAddress) {
       Alert.alert("Adresses requises", "Selectionnez depart et arrivee.");
@@ -104,10 +123,7 @@ export default function OfferScreen() {
 
     const timeWindow = buildDayWindowTimestamps(tripDate);
     if (!timeWindow) {
-      Alert.alert(
-        "Date invalide",
-        "Choisissez la date du trajet au format JJ/MM/AAAA."
-      );
+      Alert.alert("Date invalide", "Choisissez la date du trajet au format JJ/MM/AAAA.");
       return;
     }
 
@@ -149,12 +165,14 @@ export default function OfferScreen() {
         router.replace("/(tabs)/profile");
       } else {
         resetForm();
-        Alert.alert("Trajet publie", "Les colis compatibles sont visibles dans l'onglet Carte.");
+        Alert.alert("Trajet publie", "Les colis compatibles sont visibles dans l'onglet Activite.");
       }
     } catch {
       Alert.alert("Erreur", isEditMode ? "Impossible de modifier le trajet." : "Impossible de publier le trajet.");
     }
   };
+
+  const progress = Math.round((step / TOTAL_STEPS) * 100);
 
   return (
     <KeyboardAvoidingView
@@ -162,94 +180,158 @@ export default function OfferScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {isEditMode ? (
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={16} color="#334155" />
-            <Text style={styles.backButtonText}>Precedent</Text>
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity style={styles.backButton} onPress={() => (step === 1 ? router.back() : setStep((prev) => prev - 1))}>
+          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
+          <Text style={styles.backButtonText}>{step === 1 ? "Precedent" : "Etape precedente"}</Text>
+        </TouchableOpacity>
 
         <Text style={styles.header}>{isEditMode ? "Modifier mon trajet" : "Publier un trajet"}</Text>
 
-        <AddressAutocompleteInput
-          label="Adresse depart"
-          placeholder="Saisissez puis choisissez"
-          value={originAddress}
-          onChange={setOriginAddress}
-        />
-        <AddressAutocompleteInput
-          label="Adresse arrivee"
-          placeholder="Saisissez puis choisissez"
-          value={destinationAddress}
-          onChange={setDestinationAddress}
-        />
-
-        <Text style={styles.label}>Espace disponible</Text>
-        <View style={styles.row}>
-          {(["petit", "moyen", "grand"] as const).map((value) => (
-            <TouchableOpacity
-              key={value}
-              style={[styles.chip, value === availableSpace && styles.chipActive]}
-              onPress={() => setAvailableSpace(value)}
-            >
-              <Text style={[styles.chipText, value === availableSpace && styles.chipTextActive]}>
-                {value}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <Text style={styles.progressLabel}>Etape {step}/{TOTAL_STEPS}</Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressBar, { width: `${progress}%` }]} />
         </View>
 
-        <Text style={styles.label}>Deviation max conducteur (min)</Text>
-        <View style={styles.row}>
-          {[10, 20, 30].map((minutes) => (
-            <TouchableOpacity
-              key={minutes}
-              style={[styles.chip, maxDetourMinutes === minutes && styles.chipActive]}
-              onPress={() => setMaxDetourMinutes(minutes)}
-            >
-              <Text style={[styles.chipText, maxDetourMinutes === minutes && styles.chipTextActive]}>
-                {minutes}
-              </Text>
+        {step === 1 ? (
+          <>
+            <Text style={styles.stepTitle}>Itineraire</Text>
+            <AddressAutocompleteInput
+              label="Adresse depart"
+              placeholder="Saisissez puis choisissez"
+              value={originAddress}
+              onChange={setOriginAddress}
+            />
+            <AddressAutocompleteInput
+              label="Adresse arrivee"
+              placeholder="Saisissez puis choisissez"
+              value={destinationAddress}
+              onChange={setDestinationAddress}
+            />
+          </>
+        ) : null}
+
+        {step === 2 ? (
+          <>
+            <Text style={styles.stepTitle}>Quand</Text>
+            <TimeWindowInput
+              title="Date de votre trajet"
+              subtitle="Le matching se fait sur la journee"
+              dateValue={tripDate}
+              onDateChange={setTripDate}
+              slot="day"
+              onSlotChange={() => {}}
+              showSlots={false}
+            />
+          </>
+        ) : null}
+
+        {step === 3 ? (
+          <>
+            <Text style={styles.stepTitle}>Capacite</Text>
+            <Text style={styles.label}>Espace disponible</Text>
+            <View style={styles.row}>
+              {(["petit", "moyen", "grand"] as const).map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.chip, value === availableSpace && styles.chipActive]}
+                  onPress={() => setAvailableSpace(value)}
+                >
+                  <Text style={[styles.chipText, value === availableSpace && styles.chipTextActive]}>
+                    {value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.advancedToggle} onPress={() => setShowAdvanced((prev) => !prev)}>
+              <Text style={styles.advancedToggleText}>{showAdvanced ? "Masquer options avancees" : "Afficher options avancees"}</Text>
             </TouchableOpacity>
-          ))}
-        </View>
 
-        <Text style={styles.label}>Poids max (kg)</Text>
-        <TextInput value={maxWeightKg} onChangeText={setMaxWeightKg} style={styles.input} keyboardType="numeric" />
+            {showAdvanced ? (
+              <>
+                <Text style={styles.label}>Deviation max conducteur (min)</Text>
+                <View style={styles.row}>
+                  {[10, 20, 30].map((minutes) => (
+                    <TouchableOpacity
+                      key={minutes}
+                      style={[styles.chip, maxDetourMinutes === minutes && styles.chipActive]}
+                      onPress={() => setMaxDetourMinutes(minutes)}
+                    >
+                      <Text style={[styles.chipText, maxDetourMinutes === minutes && styles.chipTextActive]}>
+                        {minutes}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
 
-        <Text style={styles.label}>Volume max (dm3)</Text>
-        <TextInput value={maxVolumeDm3} onChangeText={setMaxVolumeDm3} style={styles.input} keyboardType="numeric" />
+                <Text style={styles.label}>Poids max (kg)</Text>
+                <TextInput value={maxWeightKg} onChangeText={setMaxWeightKg} style={styles.input} keyboardType="numeric" />
 
-        <Text style={styles.label}>Prix de base (EUR)</Text>
-        <TextInput value={basePrice} onChangeText={setBasePrice} style={styles.input} keyboardType="numeric" />
+                <Text style={styles.label}>Volume max (dm3)</Text>
+                <TextInput value={maxVolumeDm3} onChangeText={setMaxVolumeDm3} style={styles.input} keyboardType="numeric" />
 
-        <TimeWindowInput
-          title="Date de votre trajet"
-          subtitle="Le matching se fait sur la journee entiere de ce trajet"
-          dateValue={tripDate}
-          onDateChange={setTripDate}
-          slot="day"
-          onSlotChange={() => {}}
-          showSlots={false}
-        />
+                <Text style={styles.label}>Prix de base (EUR)</Text>
+                <TextInput value={basePrice} onChangeText={setBasePrice} style={styles.input} keyboardType="numeric" />
+              </>
+            ) : null}
+          </>
+        ) : null}
 
-        <TouchableOpacity style={styles.button} onPress={publishTrip}>
-          <Ionicons name="car" size={18} color="#FFFFFF" />
-          <Text style={styles.buttonText}>{isEditMode ? "Mettre a jour votre annonce" : "Publier et matcher les colis"}</Text>
-        </TouchableOpacity>
+        {step === 4 ? (
+          <>
+            <Text style={styles.stepTitle}>Verification</Text>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLine}>Itineraire: {originAddress?.label ?? "-"}{" -> "}{destinationAddress?.label ?? "-"}</Text>
+              <Text style={styles.summaryLine}>Date: {tripDate || "-"}</Text>
+              <Text style={styles.summaryLine}>Espace: {availableSpace}</Text>
+              <Text style={styles.summaryLine}>Deviation max: {maxDetourMinutes} min</Text>
+            </View>
+          </>
+        ) : null}
+
+        {step < TOTAL_STEPS ? (
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              if (!validateStep(step)) return;
+              setStep((prev) => prev + 1);
+            }}
+          >
+            <Text style={styles.buttonText}>Continuer</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={() => void publishTrip()}>
+            <Ionicons name="car" size={18} color={Colors.dark.text} />
+            <Text style={styles.buttonText}>{isEditMode ? "Mettre a jour" : "Publier"}</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  header: { fontSize: 24, color: "#0F172A", fontWeight: "700", marginBottom: 14 },
-  label: { marginTop: 10, marginBottom: 6, fontSize: 14, fontWeight: "600", color: "#334155" },
+  header: { fontSize: 24, color: Colors.dark.text, marginBottom: 10, fontFamily: Fonts.displaySemiBold },
+  progressLabel: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
+  progressTrack: {
+    marginTop: 6,
+    marginBottom: 14,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: Colors.dark.border,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: Colors.dark.primary,
+  },
+  stepTitle: { fontSize: 16, color: Colors.dark.text, marginBottom: 10, fontFamily: Fonts.displaySemiBold },
+  label: { marginTop: 10, marginBottom: 6, fontSize: 14, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   input: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surface,
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 10,
@@ -258,31 +340,33 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chip: {
     borderRadius: 999,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     paddingVertical: 7,
     paddingHorizontal: 12,
   },
-  chipActive: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
-  chipText: { color: "#334155", fontWeight: "600" },
-  chipTextActive: { color: "#FFFFFF" },
+  chipActive: { backgroundColor: Colors.dark.primary, borderColor: Colors.dark.primary },
+  chipText: { color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
+  chipTextActive: { color: Colors.dark.text },
   backButton: {
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.surface,
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
+  advancedToggle: { marginTop: 10, alignSelf: "flex-start" },
+  advancedToggleText: { color: Colors.dark.primary, fontSize: 13, fontFamily: Fonts.sansSemiBold },
   button: {
     marginTop: 20,
-    backgroundColor: "#4F46E5",
+    backgroundColor: Colors.dark.primary,
     borderRadius: 10,
     paddingVertical: 13,
     flexDirection: "row",
@@ -290,7 +374,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  buttonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" },
-  title: { fontSize: 16, fontWeight: "700", color: "#0F172A", textAlign: "center", paddingHorizontal: 24 },
+  buttonText: { color: Colors.dark.text, fontSize: 15, fontFamily: Fonts.sansSemiBold },
+  summaryCard: {
+    borderRadius: 10,
+    borderColor: Colors.dark.border,
+    borderWidth: 1,
+    backgroundColor: Colors.dark.surface,
+    padding: 12,
+    gap: 6,
+  },
+  summaryLine: { fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.dark.background },
+  title: { fontSize: 16, color: Colors.dark.text, textAlign: "center", paddingHorizontal: 24, fontFamily: Fonts.displaySemiBold },
 });

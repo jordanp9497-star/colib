@@ -19,6 +19,7 @@ import type * as notifications from "../notifications.js";
 import type * as parcels from "../parcels.js";
 import type * as reviews from "../reviews.js";
 import type * as shipments from "../shipments.js";
+import type * as tripSessions from "../tripSessions.js";
 import type * as trips from "../trips.js";
 import type * as users from "../users.js";
 
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   parcels: typeof parcels;
   reviews: typeof reviews;
   shipments: typeof shipments;
+  tripSessions: typeof tripSessions;
   trips: typeof trips;
   users: typeof users;
 }>;

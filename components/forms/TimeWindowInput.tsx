@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Colors, Fonts } from "@/constants/theme";
 
 export type SlotKey = "morning" | "afternoon" | "evening" | "day";
 
@@ -109,7 +110,7 @@ export function TimeWindowInput({
         value={dateValue}
         onChangeText={onDateChange}
         placeholder="JJ/MM/AAAA"
-        placeholderTextColor="#94A3B8"
+        placeholderTextColor={Colors.dark.textSecondary}
       />
 
       {showSlots && slotMode === "chips" ? (
@@ -165,8 +166,8 @@ const styles = StyleSheet.create({
   root: {
     marginTop: 10,
     marginBottom: 6,
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surface,
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -174,55 +175,57 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   subtitle: {
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginTop: 2,
     marginBottom: 8,
   },
   input: {
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#0F172A",
-    backgroundColor: "#F8FAFC",
+    color: Colors.dark.text,
+    backgroundColor: Colors.dark.surfaceMuted,
+    fontFamily: Fonts.sans,
   },
   slotRow: {
     marginTop: 10,
     gap: 8,
   },
   slotChip: {
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   slotChipActive: {
-    borderColor: "#4F46E5",
-    backgroundColor: "#EEF2FF",
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.primaryLight,
   },
   slotText: {
-    color: "#334155",
+    color: Colors.dark.textSecondary,
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   slotTextActive: {
-    color: "#3730A3",
+    color: Colors.dark.text,
   },
   dropdownWrap: {
     marginTop: 10,
   },
   dropdownTrigger: {
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 10,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: Colors.dark.surfaceMuted,
     paddingVertical: 10,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -230,38 +233,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dropdownTriggerText: {
-    color: "#0F172A",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 13,
   },
   dropdownTriggerIcon: {
-    color: "#475569",
-    fontWeight: "700",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 16,
   },
   dropdownList: {
     marginTop: 6,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.dark.surface,
   },
   dropdownItem: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderBottomColor: "#E2E8F0",
+    borderBottomColor: Colors.dark.border,
     borderBottomWidth: 1,
   },
   dropdownItemActive: {
-    backgroundColor: "#EEF2FF",
+    backgroundColor: Colors.dark.primaryLight,
   },
   dropdownItemText: {
-    color: "#334155",
+    color: Colors.dark.textSecondary,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   dropdownItemTextActive: {
-    color: "#3730A3",
+    color: Colors.dark.text,
   },
 });
