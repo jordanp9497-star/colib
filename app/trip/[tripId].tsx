@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { formatShortAddress } from "@/utils/address";
+import { Colors, Fonts } from "@/constants/theme";
 
 export default function TripDetailsScreen() {
   const params = useLocalSearchParams<{ tripId?: string }>();
@@ -65,7 +66,7 @@ export default function TripDetailsScreen() {
         style={styles.backButton}
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/map" as any))}
       >
-        <Ionicons name="arrow-back" size={16} color="#CBD5E1" />
+        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
         <Text style={styles.backButtonText}>Retour carte</Text>
       </TouchableOpacity>
 
@@ -100,7 +101,7 @@ export default function TripDetailsScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Publie par</Text>
         <View style={styles.row}>
-          <Ionicons name="person-circle-outline" size={18} color="#475569" />
+          <Ionicons name="person-circle-outline" size={18} color={Colors.dark.textSecondary} />
           <Text style={styles.publisher}>{trip.userName}</Text>
         </View>
       </View>
@@ -125,7 +126,7 @@ export default function TripDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
   content: {
     padding: 16,
@@ -139,32 +140,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 4,
     backgroundColor: "#161D24",
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#CBD5E1" },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#E2E8F0",
+    color: Colors.dark.text,
     marginBottom: 6,
+    fontFamily: Fonts.displaySemiBold,
   },
   card: {
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     padding: 14,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#F8FAFC",
+    color: Colors.dark.text,
     marginBottom: 8,
+    fontFamily: Fonts.sansSemiBold,
   },
   row: {
     flexDirection: "row",
@@ -176,25 +177,26 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     fontWeight: "700",
     textTransform: "uppercase",
   },
   value: {
     marginTop: 4,
     fontSize: 14,
-    color: "#E2E8F0",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   metaLine: {
     fontSize: 14,
-    color: "#CBD5E1",
+    color: Colors.dark.textSecondary,
     marginBottom: 4,
+    fontFamily: Fonts.sans,
   },
   publisher: {
     fontSize: 15,
-    color: "#E2E8F0",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   actionsRow: {
     marginTop: 4,
@@ -208,9 +210,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   editButtonText: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: Fonts.sansSemiBold,
   },
   deleteButton: {
     borderRadius: 10,
@@ -220,9 +222,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   deleteButtonText: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: Fonts.sansSemiBold,
   },
   center: {
     flex: 1,
@@ -232,7 +234,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#E2E8F0",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
   },
 });

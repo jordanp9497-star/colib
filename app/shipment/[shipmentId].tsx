@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
+import { Colors, Fonts } from "@/constants/theme";
 
 const NEXT_STATUS: Record<string, string | null> = {
   carrier_assigned: "en_route_pickup",
@@ -25,6 +26,25 @@ const NEXT_STATUS: Record<string, string | null> = {
   incident_resolved: "in_transit",
   delivered: null,
   cancelled: null,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  carrier_assigned: "Transporteur assigne",
+  en_route_pickup: "En route vers collecte",
+  parcel_picked_up: "Colis recupere",
+  in_transit: "En transit",
+  near_delivery: "Proche de la livraison",
+  incident_open: "Incident ouvert",
+  incident_resolved: "Incident resolu",
+  delivered: "Livre",
+  cancelled: "Annule",
+};
+
+const PAYMENT_LABELS: Record<string, string> = {
+  pending: "En attente",
+  held: "Bloque",
+  released: "Libere",
+  failed: "Echoue",
 };
 
 function formatDate(ts?: number) {
@@ -88,6 +108,7 @@ export default function ShipmentDetailsScreen() {
   }
 
   const suggestedNext = NEXT_STATUS[shipment.status] ?? null;
+  const suggestedNextLabel = suggestedNext ? (STATUS_LABELS[suggestedNext] ?? suggestedNext) : null;
   const canAdvance =
     suggestedNext !== null &&
     ((role === "carrier" && suggestedNext !== "delivered") || suggestedNext === "delivered");
@@ -167,7 +188,7 @@ export default function ShipmentDetailsScreen() {
         style={styles.backButton}
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
       >
-        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
         <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
@@ -177,11 +198,11 @@ export default function ShipmentDetailsScreen() {
         <Text style={styles.sectionTitle}>Etat actuel</Text>
         <View style={styles.row}>
           <Ionicons name="cube-outline" size={16} color="#2563EB" />
-          <Text style={styles.value}>{shipment.status}</Text>
+          <Text style={styles.value}>{STATUS_LABELS[shipment.status] ?? shipment.status}</Text>
         </View>
         <View style={styles.row}>
           <Ionicons name="wallet-outline" size={16} color="#0EA5E9" />
-          <Text style={styles.value}>Paiement: {shipment.paymentStatus}</Text>
+          <Text style={styles.value}>Paiement: {PAYMENT_LABELS[shipment.paymentStatus] ?? shipment.paymentStatus}</Text>
         </View>
         <Text style={styles.metaLine}>
           Montant: {shipment.paymentAmount} {shipment.paymentCurrency}
@@ -233,7 +254,7 @@ export default function ShipmentDetailsScreen() {
             {updatingStatus ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.primaryButtonText}>Passer a {suggestedNext}</Text>
+              <Text style={styles.primaryButtonText}>Passer a {suggestedNextLabel}</Text>
             )}
           </TouchableOpacity>
         ) : null}
@@ -326,7 +347,7 @@ export default function ShipmentDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
   content: {
     paddingTop: 56,
@@ -340,14 +361,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 4,
     backgroundColor: "#161D24",
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -356,22 +377,22 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
     marginBottom: 4,
+    fontFamily: Fonts.displaySemiBold,
   },
   card: {
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     padding: 14,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
     marginBottom: 10,
+    fontFamily: Fonts.sansSemiBold,
   },
   row: {
     flexDirection: "row",
@@ -381,14 +402,15 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 14,
-    color: "#1E293B",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
     textTransform: "capitalize",
   },
   metaLine: {
     fontSize: 13,
-    color: "#475569",
+    color: Colors.dark.textSecondary,
     marginBottom: 4,
+    fontFamily: Fonts.sans,
   },
   primaryButton: {
     marginTop: 8,
@@ -398,10 +420,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 13,
     textTransform: "capitalize",
+    fontFamily: Fonts.sansSemiBold,
   },
   warningButton: {
     marginTop: 8,
@@ -430,7 +452,7 @@ const styles = StyleSheet.create({
   qrBlock: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: Colors.dark.border,
     borderRadius: 10,
     padding: 10,
     backgroundColor: "#0B1220",
@@ -438,45 +460,47 @@ const styles = StyleSheet.create({
   },
   qrLabel: {
     fontSize: 12,
-    color: "#94A3B8",
-    fontWeight: "700",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sansSemiBold,
   },
   qrValue: {
     fontSize: 13,
-    color: "#E2E8F0",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   warningButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
   },
   buttonDisabled: {
     opacity: 0.65,
   },
   emptyTitle: {
     fontSize: 18,
-    color: "#0F172A",
-    fontWeight: "700",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
   },
   emptyText: {
     fontSize: 13,
-    color: "#94A3B8",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   eventRow: {
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: Colors.dark.border,
     paddingVertical: 8,
   },
   eventType: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#1E293B",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   eventDate: {
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginTop: 2,
+    fontFamily: Fonts.sans,
   },
   messageBubble: {
     borderRadius: 10,
@@ -484,30 +508,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   myMessageBubble: {
-    backgroundColor: "#DBEAFE",
+    backgroundColor: Colors.dark.primaryLight,
     borderWidth: 1,
-    borderColor: "#93C5FD",
+    borderColor: Colors.dark.primary,
   },
   otherMessageBubble: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: Colors.dark.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
   },
   messageRole: {
     fontSize: 11,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginBottom: 4,
     textTransform: "uppercase",
-    fontWeight: "700",
+    fontFamily: Fonts.sansSemiBold,
   },
   messageText: {
     fontSize: 14,
-    color: "#1E293B",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sans,
   },
   messageDate: {
     fontSize: 11,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginTop: 6,
+    fontFamily: Fonts.sans,
   },
   messageComposer: {
     marginTop: 8,
@@ -521,12 +547,13 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     backgroundColor: "#161D24",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: "#1E293B",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sans,
   },
   sendButton: {
     width: 42,

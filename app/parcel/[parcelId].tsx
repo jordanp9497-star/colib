@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { formatShortAddress } from "@/utils/address";
+import { Colors, Fonts } from "@/constants/theme";
 
 export default function ParcelDetailsScreen() {
   const params = useLocalSearchParams<{ parcelId?: string }>();
@@ -97,7 +98,7 @@ export default function ParcelDetailsScreen() {
         style={styles.backButton}
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
       >
-        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
         <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
@@ -123,7 +124,7 @@ export default function ParcelDetailsScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Publie par</Text>
         <View style={styles.row}>
-          <Ionicons name="person-circle-outline" size={18} color="#475569" />
+          <Ionicons name="person-circle-outline" size={18} color={Colors.dark.textSecondary} />
           <Text style={styles.publisher}>{parcel.userName}</Text>
         </View>
       </View>
@@ -176,7 +177,7 @@ export default function ParcelDetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
   content: {
     padding: 16,
@@ -190,32 +191,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 4,
     backgroundColor: "#161D24",
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
     marginBottom: 6,
+    fontFamily: Fonts.displaySemiBold,
   },
   card: {
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
     borderRadius: 12,
     padding: 14,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
     marginBottom: 8,
+    fontFamily: Fonts.sansSemiBold,
   },
   row: {
     flexDirection: "row",
@@ -227,25 +228,26 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     fontWeight: "700",
     textTransform: "uppercase",
   },
   value: {
     marginTop: 4,
     fontSize: 14,
-    color: "#1E293B",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   publisher: {
     fontSize: 15,
-    color: "#1E293B",
-    fontWeight: "600",
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   description: {
     fontSize: 14,
-    color: "#334155",
+    color: Colors.dark.textSecondary,
     lineHeight: 20,
+    fontFamily: Fonts.sans,
   },
   metaRow: {
     marginTop: 10,
@@ -255,13 +257,14 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: "#475569",
-    fontWeight: "600",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sansSemiBold,
   },
   hint: {
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     marginBottom: 10,
+    fontFamily: Fonts.sans,
   },
   reserveButton: {
     backgroundColor: "#EA580C",
@@ -274,9 +277,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#94A3B8",
   },
   reserveButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: Colors.dark.text,
     fontSize: 15,
+    fontFamily: Fonts.sansSemiBold,
   },
   actionsRow: {
     marginTop: 2,
@@ -290,9 +293,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   editButtonText: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: Fonts.sansSemiBold,
   },
   deleteButton: {
     borderRadius: 10,
@@ -302,9 +305,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   deleteButtonText: {
-    color: "#FFFFFF",
+    color: Colors.dark.text,
     fontSize: 14,
-    fontWeight: "700",
+    fontFamily: Fonts.sansSemiBold,
   },
   center: {
     flex: 1,
@@ -314,7 +317,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
+    color: Colors.dark.text,
+    fontFamily: Fonts.displaySemiBold,
   },
 });

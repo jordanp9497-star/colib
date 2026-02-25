@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import { Colors, Fonts } from "@/constants/theme";
 
 type SortBy = "best" | "soonest" | "detour" | "price";
 
@@ -102,7 +103,7 @@ export default function ParcelMatchScreen() {
         style={styles.backButton}
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
       >
-        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
         <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
@@ -156,9 +157,9 @@ export default function ParcelMatchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0F141A", padding: 16, paddingTop: 56 },
-  title: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
-  subtitle: { marginTop: 4, marginBottom: 12, fontSize: 13, color: "#64748B" },
+  container: { flex: 1, backgroundColor: Colors.dark.background, padding: 16, paddingTop: 56 },
+  title: { fontSize: 24, color: Colors.dark.text, fontFamily: Fonts.displaySemiBold },
+  subtitle: { marginTop: 4, marginBottom: 12, fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
   sortRow: { flexDirection: "row", gap: 8, marginVertical: 12, flexWrap: "wrap" },
   backButton: {
     alignSelf: "flex-start",
@@ -166,49 +167,49 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 10,
     backgroundColor: "#161D24",
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
+  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   sortChip: {
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    color: "#334155",
+    color: Colors.dark.textSecondary,
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.sansSemiBold,
   },
   sortChipActive: {
-    borderColor: "#1D4ED8",
-    backgroundColor: "#DBEAFE",
-    color: "#1E40AF",
+    borderColor: Colors.dark.primary,
+    backgroundColor: Colors.dark.primaryLight,
+    color: Colors.dark.text,
   },
   list: { paddingTop: 12, gap: 8, paddingBottom: 30 },
   card: {
-    backgroundColor: "#161D24",
-    borderColor: "#E2E8F0",
+    backgroundColor: Colors.dark.surface,
+    borderColor: Colors.dark.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
   },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: "#0F172A", marginBottom: 4 },
-  cardLine: { fontSize: 13, color: "#475569" },
-  price: { marginTop: 6, fontSize: 15, fontWeight: "700", color: "#4338CA" },
+  cardTitle: { fontSize: 14, color: Colors.dark.text, marginBottom: 4, fontFamily: Fonts.sansSemiBold },
+  cardLine: { fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
+  price: { marginTop: 6, fontSize: 15, color: Colors.dark.primary, fontFamily: Fonts.sansSemiBold },
   emptyCard: {
     marginTop: 20,
     borderRadius: 12,
     padding: 14,
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surface,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: Colors.dark.border,
   },
-  emptyTitle: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
-  emptyText: { marginTop: 6, fontSize: 13, color: "#64748B" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0F141A" },
+  emptyTitle: { fontSize: 15, color: Colors.dark.text, fontFamily: Fonts.sansSemiBold },
+  emptyText: { marginTop: 6, fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.dark.background },
 });
