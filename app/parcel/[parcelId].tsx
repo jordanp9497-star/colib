@@ -86,10 +86,19 @@ export default function ParcelDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      scrollEventThrottle={16}
+    >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+      >
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Retour accueil</Text>
+        <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Annonce colis</Text>

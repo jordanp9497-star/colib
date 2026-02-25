@@ -27,6 +27,7 @@ import VerificationBadge from "@/components/profile/VerificationBadge";
 import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
 import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
 import { Colors, Fonts } from "@/constants/theme";
+import { isJordanAdminName } from "@/constants/admin";
 
 export default function ProfileScreen() {
   const { userId, isLoggedIn, isLoading, register, user } = useUser();
@@ -141,11 +142,13 @@ function LoggedInProfile({
     trips: false,
     parcels: false,
   });
+  const [verificationMenuOpen, setVerificationMenuOpen] = useState(false);
   const [inlineFeedback, setInlineFeedback] = useState<{
     type: "success" | "error" | "info";
     message: string;
   } | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const isJordanAdmin = isJordanAdminName(user.name);
 
   const requestCode = useMutation(api.emailVerification.requestCode);
   const verifyCode = useMutation(api.emailVerification.verifyCode);
@@ -449,15 +452,25 @@ function LoggedInProfile({
       {/* Header */}
       <View style={styles.profileHeader}>
         {router.canGoBack() ? (
-          <TouchableOpacity style={styles.headerBackButton} onPress={() => router.replace("/(tabs)" as any)}>
+          <TouchableOpacity
+            style={styles.headerBackButton}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+          >
             <Ionicons name="arrow-back" size={16} color={Colors.dark.text} />
-            <Text style={styles.headerBackButtonText}>Retour accueil</Text>
+            <Text style={styles.headerBackButtonText}>Retour</Text>
           </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity style={styles.settingsButton} onPress={() => router.push("/settings" as any)}>
           <Ionicons name="settings-outline" size={18} color={Colors.dark.text} />
         </TouchableOpacity>
+
+        {isJordanAdmin ? (
+          <TouchableOpacity style={styles.adminButton} onPress={() => router.push("/admin-support" as any)}>
+            <Ionicons name="shield-checkmark-outline" size={15} color={Colors.dark.text} />
+            <Text style={styles.adminButtonText}>Admin BETA</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity onPress={handlePickProfilePhoto} disabled={uploading}>
           {user.profilePhotoUrl ? (
@@ -511,6 +524,7 @@ function LoggedInProfile({
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
         scrollEventThrottle={16}
       >
         {inlineFeedback ? (
@@ -646,6 +660,14 @@ function LoggedInProfile({
             </View>
           )}
 
+          <TouchableOpacity style={styles.submenuButton} onPress={() => setVerificationMenuOpen((prev) => !prev)}>
+            <Ionicons name={verificationMenuOpen ? "chevron-up" : "chevron-down"} size={16} color={Colors.dark.text} />
+            <Text style={styles.submenuButtonText}>Dossier identite & carte grise</Text>
+          </TouchableOpacity>
+
+          {verificationMenuOpen ? (
+            <View style={styles.submenuCard}>
+
           <TouchableOpacity
             style={[styles.docButton, uploadingId && styles.disabledButton]}
             onPress={handleUploadIdCard}
@@ -730,6 +752,8 @@ function LoggedInProfile({
               <Text style={styles.primaryButtonText}>Soumettre dossier transporteur</Text>
             )}
           </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
             </View>
           ) : null}
@@ -772,7 +796,7 @@ function LoggedInProfile({
               <Text style={styles.sectionLabel}>
                 Mes trajets ({myTrips?.length ?? 0})
               </Text>
-              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver.</Text>
+              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver, ou utilisez les boutons.</Text>
               {myTrips && myTrips.length > 0 ? (
                 myTrips.map((trip) => (
                   <SwipeActionRow
@@ -791,7 +815,11 @@ function LoggedInProfile({
                     ]}
                   >
                     <View>
-                      <TripCard trip={trip as any} />
+                      <TripCard
+                        trip={trip as any}
+                        onEdit={() => handleEditTrip(String(trip._id))}
+                        onDelete={() => handleDeleteTrip(String(trip._id))}
+                      />
                     </View>
                   </SwipeActionRow>
                 ))
@@ -816,7 +844,7 @@ function LoggedInProfile({
               <Text style={styles.sectionLabel}>
                 Mes colis ({myParcels?.length ?? 0})
               </Text>
-              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver.</Text>
+              <Text style={styles.sectionDescription}>Glissez vers la gauche pour modifier ou archiver, ou utilisez les boutons.</Text>
               {myParcels && myParcels.length > 0 ? (
                 myParcels.map((parcel) => (
                   <SwipeActionRow
@@ -835,7 +863,11 @@ function LoggedInProfile({
                     ]}
                   >
                     <View>
-                      <ParcelCard parcel={parcel as any} />
+                      <ParcelCard
+                        parcel={parcel as any}
+                        onEdit={() => handleEditParcel(String(parcel._id))}
+                        onDelete={() => handleDeleteParcel(String(parcel._id))}
+                      />
                     </View>
                   </SwipeActionRow>
                 ))
@@ -1004,6 +1036,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(15, 23, 42, 0.22)",
+  },
+  adminButton: {
+    position: "absolute",
+    right: 56,
+    top: 56,
+    minHeight: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    paddingHorizontal: 10,
+    gap: 4,
+    backgroundColor: "rgba(15, 23, 42, 0.22)",
+  },
+  adminButtonText: {
+    color: Colors.dark.text,
+    fontSize: 11,
+    fontFamily: Fonts.sansSemiBold,
   },
   headerBackButton: {
     position: "absolute",
@@ -1250,6 +1302,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.dark.text,
     fontFamily: Fonts.sans,
+  },
+  submenuButton: {
+    marginBottom: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  submenuButtonText: {
+    fontSize: 13,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  submenuCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: "#0F172A",
+    padding: 10,
   },
 
   // Reviews

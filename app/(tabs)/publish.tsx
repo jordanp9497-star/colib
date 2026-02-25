@@ -10,9 +10,12 @@ export default function PublishScreen() {
   return (
     <View style={styles.container}>
       {router.canGoBack() ? (
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+        >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour accueil</Text>
+          <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       ) : null}
 

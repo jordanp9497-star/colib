@@ -35,6 +35,7 @@ export default function MapScreen() {
     [matches, selectedDetour]
   );
   const mapHeight = Math.min(Math.max(300, Math.round(screenHeight * 0.52)), 420);
+  const overlayMaxHeight = Math.min(Math.max(180, Math.round(screenHeight * 0.34)), 300);
   const parcelById = useMemo(() => {
     if (!parcels) return new Map<string, any>();
     return new Map(parcels.map((parcel) => [String(parcel._id), parcel]));
@@ -195,6 +196,26 @@ export default function MapScreen() {
   };
 
   const handlePinPress = (pinId: string) => {
+    if (pinId.startsWith("parcel-")) {
+      const parcelId = pinId.replace("parcel-", "");
+      if (selectedPinId === pinId) {
+        openParcelDetails(parcelId);
+        return;
+      }
+      setSelectedPinId(pinId);
+      return;
+    }
+
+    if (pinId.startsWith("trip-")) {
+      if (selectedPinId === pinId) {
+        if (!activeTrip) return;
+        router.push(`/trip/${activeTrip._id}` as any);
+        return;
+      }
+      setSelectedPinId(pinId);
+      return;
+    }
+
     setSelectedPinId(pinId);
   };
 
@@ -257,11 +278,16 @@ export default function MapScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      scrollEventThrottle={16}
     >
       {router.canGoBack() ? (
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+        >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour accueil</Text>
+          <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       ) : null}
 
@@ -284,51 +310,94 @@ export default function MapScreen() {
       </View>
 
       <View style={styles.mapWrap}>
-        <CrossPlatformMap pins={mapPins} paths={mapPaths} height={mapHeight} onPinPress={handlePinPress} />
+        <CrossPlatformMap
+          pins={mapPins}
+          paths={mapPaths}
+          height={mapHeight}
+          onPinPress={handlePinPress}
+          selectedPinId={selectedPinId}
+        />
+
+        {selectedParcel ? (
+          <TouchableOpacity style={styles.mapBubble} activeOpacity={0.9} onPress={() => openParcelDetails(String(selectedParcel._id))}>
+            <View style={styles.mapBubbleMain}>
+              <Ionicons name="cube" size={15} color={Colors.dark.text} />
+              <View style={styles.mapBubbleTextWrap}>
+                <Text style={styles.mapBubbleTitle} numberOfLines={1}>Colis selectionne</Text>
+                <Text style={styles.mapBubbleSubtitle} numberOfLines={1}>
+                  {selectedParcel.originAddress.city ?? selectedParcel.origin}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.mapBubbleActions}>
+              <Text style={styles.mapBubbleCta}>Voir annonce</Text>
+              <TouchableOpacity
+                style={styles.mapBubbleClose}
+                hitSlop={10}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedPinId(null);
+                }}
+              >
+                <Ionicons name="close" size={14} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        ) : selectedIsTripPin ? (
+          <TouchableOpacity style={styles.mapBubble} activeOpacity={0.9} onPress={() => router.push(`/trip/${activeTrip._id}` as any)}>
+            <View style={styles.mapBubbleMain}>
+              <Ionicons name="navigate" size={15} color={Colors.dark.text} />
+              <View style={styles.mapBubbleTextWrap}>
+                <Text style={styles.mapBubbleTitle} numberOfLines={1}>Trajet actif</Text>
+                <Text style={styles.mapBubbleSubtitle} numberOfLines={1}>Ouvrir l&apos;annonce du trajet</Text>
+              </View>
+            </View>
+            <View style={styles.mapBubbleActions}>
+              <Text style={styles.mapBubbleCta}>Voir annonce</Text>
+              <TouchableOpacity
+                style={styles.mapBubbleClose}
+                hitSlop={10}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setSelectedPinId(null);
+                }}
+              >
+                <Ionicons name="close" size={14} color={Colors.dark.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      {selectedPinId ? (
+      {selectedClusterParcels.length > 0 ? (
         <View style={styles.bottomSheet}>
           <View style={styles.sheetHandle} />
-          {selectedParcel ? (
-            <>
-              <Text style={styles.sheetTitle}>Pin colis selectionne</Text>
-              <Text style={styles.sheetSubtitle}>{selectedParcel.originAddress.city ?? selectedParcel.origin}</Text>
-              <TouchableOpacity style={styles.sheetCta} onPress={() => openParcelDetails(String(selectedParcel._id))}>
-                <Text style={styles.sheetCtaText}>Voir colis</Text>
+          <Text style={styles.sheetTitle}>Zone dense ({selectedClusterParcels.length} colis)</Text>
+          <Text style={styles.sheetSubtitle}>Choisissez un colis de la zone pour ouvrir sa fiche.</Text>
+          <View style={styles.sheetMiniList}>
+            {selectedClusterParcels.slice(0, 3).map((parcel) => (
+              <TouchableOpacity
+                key={parcel._id}
+                style={styles.miniParcelButton}
+                onPress={() => openParcelDetails(String(parcel._id))}
+              >
+                <Text style={styles.miniParcelText} numberOfLines={1}>{parcel.originAddress.city ?? parcel.origin}</Text>
               </TouchableOpacity>
-            </>
-          ) : selectedClusterParcels.length > 0 ? (
-            <>
-              <Text style={styles.sheetTitle}>Zone dense ({selectedClusterParcels.length} colis)</Text>
-              <Text style={styles.sheetSubtitle}>Choisissez un colis de la zone pour ouvrir sa fiche.</Text>
-              <View style={styles.sheetMiniList}>
-                {selectedClusterParcels.slice(0, 3).map((parcel) => (
-                  <TouchableOpacity
-                    key={parcel._id}
-                    style={styles.miniParcelButton}
-                    onPress={() => openParcelDetails(String(parcel._id))}
-                  >
-                    <Text style={styles.miniParcelText} numberOfLines={1}>{parcel.originAddress.city ?? parcel.origin}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          ) : selectedIsTripPin ? (
-            <>
-              <Text style={styles.sheetTitle}>Pin trajet selectionne</Text>
-              <Text style={styles.sheetSubtitle}>Ouvrez le detail du trajet actif.</Text>
-              <TouchableOpacity style={styles.sheetCta} onPress={() => router.push(`/trip/${activeTrip._id}` as any)}>
-                <Text style={styles.sheetCtaText}>Voir trajet</Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
+            ))}
+          </View>
         </View>
       ) : null}
 
       <View style={styles.overlayPanel}>
         <Text style={styles.overlayTitle}>{filteredMatches.length} colis compatibles</Text>
-        <View style={styles.overlayList}>
+        <ScrollView
+          style={[styles.overlayList, { maxHeight: overlayMaxHeight }]}
+          contentContainerStyle={styles.overlayListContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+        >
           {matchesWithParcel.map(({ match, parcel }) => (
             <TouchableOpacity key={match._id} style={styles.card} activeOpacity={0.85} onPress={() => openParcelDetails(String(parcel._id))}>
               <Text style={styles.cardTitle} numberOfLines={1}>
@@ -344,7 +413,7 @@ export default function MapScreen() {
           {filteredMatches.length === 0 ? (
             <Text style={styles.emptyText}>Aucun colis compatible pour ce seuil.</Text>
           ) : null}
-        </View>
+        </ScrollView>
       </View>
     </ScrollView>
   );
@@ -383,6 +452,61 @@ const styles = StyleSheet.create({
   mapWrap: {
     marginTop: 12,
     marginBottom: 8,
+    position: "relative",
+  },
+  mapBubble: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(10, 14, 20, 0.92)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  mapBubbleMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  mapBubbleTextWrap: {
+    flex: 1,
+    gap: 1,
+  },
+  mapBubbleTitle: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  mapBubbleSubtitle: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+  },
+  mapBubbleActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  mapBubbleCta: {
+    color: Colors.dark.primary,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  mapBubbleClose: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   legendRow: {
     flexDirection: "row",
@@ -479,8 +603,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   overlayList: {
+    minHeight: 56,
+  },
+  overlayListContent: {
     gap: 8,
-    paddingBottom: 10,
+    paddingBottom: 12,
   },
   card: {
     backgroundColor: Colors.dark.surface,

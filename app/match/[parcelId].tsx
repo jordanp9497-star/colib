@@ -98,9 +98,12 @@ export default function ParcelMatchScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+      >
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Retour accueil</Text>
+        <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Matches colis</Text>

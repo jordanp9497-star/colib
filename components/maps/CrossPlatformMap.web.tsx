@@ -2,20 +2,20 @@ import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import type { CrossPlatformMapProps } from "./CrossPlatformMap.types";
 
-function createParcelPinElement(color: string) {
+function createParcelPinElement(color: string, emphasized = false) {
   const el = document.createElement("div");
-  el.style.width = "26px";
-  el.style.height = "26px";
-  el.style.borderRadius = "13px";
+  el.style.width = emphasized ? "32px" : "28px";
+  el.style.height = emphasized ? "32px" : "28px";
+  el.style.borderRadius = emphasized ? "16px" : "14px";
   el.style.display = "flex";
   el.style.alignItems = "center";
   el.style.justifyContent = "center";
-  el.style.background = color;
+  el.style.background = emphasized ? "#DC2626" : color;
   el.style.border = "2px solid #FFFFFF";
-  el.style.boxShadow = "0 2px 8px rgba(15, 23, 42, 0.25)";
+  el.style.boxShadow = emphasized ? "0 4px 14px rgba(15, 23, 42, 0.35)" : "0 2px 8px rgba(15, 23, 42, 0.25)";
   const inner = document.createElement("div");
-  inner.style.width = "10px";
-  inner.style.height = "10px";
+  inner.style.width = emphasized ? "11px" : "10px";
+  inner.style.height = emphasized ? "11px" : "10px";
   inner.style.borderRadius = "2px";
   inner.style.background = "#FFFFFF";
   inner.style.border = "1px solid rgba(15, 23, 42, 0.25)";
@@ -23,18 +23,18 @@ function createParcelPinElement(color: string) {
   return el;
 }
 
-function createClusterPinElement(label: string) {
+function createClusterPinElement(label: string, emphasized = false) {
   const el = document.createElement("div");
-  el.style.minWidth = "30px";
-  el.style.height = "30px";
-  el.style.borderRadius = "15px";
+  el.style.minWidth = emphasized ? "36px" : "34px";
+  el.style.height = emphasized ? "36px" : "34px";
+  el.style.borderRadius = emphasized ? "18px" : "17px";
   el.style.display = "flex";
   el.style.alignItems = "center";
   el.style.justifyContent = "center";
-  el.style.padding = "0 8px";
-  el.style.background = "#2563EB";
+  el.style.padding = "0 9px";
+  el.style.background = emphasized ? "#1D4ED8" : "#2563EB";
   el.style.border = "2px solid #FFFFFF";
-  el.style.boxShadow = "0 2px 8px rgba(15, 23, 42, 0.25)";
+  el.style.boxShadow = emphasized ? "0 4px 14px rgba(15, 23, 42, 0.35)" : "0 2px 8px rgba(15, 23, 42, 0.25)";
   el.style.color = "#FFFFFF";
   el.style.fontSize = "11px";
   el.style.fontWeight = "700";
@@ -52,7 +52,7 @@ type WebMap = {
   addLayer: (layer: unknown) => void;
 };
 
-export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }: CrossPlatformMapProps) {
+export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress, selectedPinId }: CrossPlatformMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<WebMap | null>(null);
 
@@ -80,6 +80,7 @@ export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }:
           style: "https://demotiles.maplibre.org/style.json",
           center: [pins[0].longitude, pins[0].latitude],
           zoom: 5,
+          cooperativeGestures: true,
         }) as unknown as WebMap;
         mapRef.current.addControl(new maplibre.NavigationControl());
       }
@@ -87,11 +88,12 @@ export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }:
       const map = mapRef.current as unknown as any;
       map.on("load", () => {
         pins.forEach((pin: any) => {
+            const isSelected = pin.id === selectedPinId;
             const marker = new maplibre.Marker(
               pin.kind === "parcel"
-                ? { element: createParcelPinElement(pin.color ?? "#EA580C") }
+                ? { element: createParcelPinElement(pin.color ?? "#EA580C", isSelected) }
                 : pin.kind === "cluster"
-                  ? { element: createClusterPinElement(pin.title?.split(" ")[0] ?? "2") }
+                  ? { element: createClusterPinElement(pin.title?.split(" ")[0] ?? "2", isSelected) }
                   : { color: pin.color ?? "#1D4ED8" }
             )
             .setLngLat([pin.longitude, pin.latitude])
@@ -151,9 +153,13 @@ export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress }:
         mapRef.current = null;
       }
     };
-  }, [onPinPress, pins, paths]);
+  }, [onPinPress, pins, paths, selectedPinId]);
 
-  return <View style={[styles.box, { height }]}>{<div ref={containerRef} style={{ width: "100%", height: "100%" }} />}</View>;
+  return (
+    <View style={[styles.box, { height }]}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%", touchAction: "pan-y" }} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

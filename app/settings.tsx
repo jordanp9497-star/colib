@@ -23,10 +23,15 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      scrollEventThrottle={16}
     >
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+      >
         <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Retour accueil</Text>
+        <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Reglages</Text>

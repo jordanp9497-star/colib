@@ -30,7 +30,7 @@ export const requestCode = mutation({
       .collect();
 
     const recentRequests = recordsForVisitor.filter(
-      (record) => record.createdAt >= now - REQUEST_WINDOW_MS
+      (record) => (record.createdAt ?? 0) >= now - REQUEST_WINDOW_MS
     );
     if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
       return {
@@ -41,9 +41,9 @@ export const requestCode = mutation({
 
     const lastRequest = recordsForVisitor
       .filter((record) => record.email === normalizedEmail)
-      .sort((a, b) => b.createdAt - a.createdAt)[0];
-    if (lastRequest && now - lastRequest.createdAt < REQUEST_COOLDOWN_MS) {
-      const remainingMs = REQUEST_COOLDOWN_MS - (now - lastRequest.createdAt);
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
+    if (lastRequest && now - (lastRequest.createdAt ?? 0) < REQUEST_COOLDOWN_MS) {
+      const remainingMs = REQUEST_COOLDOWN_MS - (now - (lastRequest.createdAt ?? 0));
       const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
       return {
         success: false,
@@ -103,13 +103,14 @@ export const verifyCode = mutation({
         (record) =>
           record.email === normalizedEmail && !record.used && record.expiresAt > now
       )
-      .sort((a, b) => b.createdAt - a.createdAt)[0];
+      .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
 
     if (!activeRecord) {
       return { success: false, error: "Aucun code actif. Demandez un nouveau code." };
     }
 
-    if (activeRecord.attempts >= MAX_VERIFY_ATTEMPTS) {
+    const currentAttempts = activeRecord.attempts ?? 0;
+    if (currentAttempts >= MAX_VERIFY_ATTEMPTS) {
       return {
         success: false,
         error: "Trop d'essais. Demandez un nouveau code.",
@@ -118,7 +119,7 @@ export const verifyCode = mutation({
 
     const providedCodeHash = hashVerificationCode(normalizedEmail, normalizedCode);
     if (providedCodeHash !== activeRecord.code) {
-      const nextAttempts = activeRecord.attempts + 1;
+      const nextAttempts = currentAttempts + 1;
       await ctx.db.patch(activeRecord._id, {
         attempts: nextAttempts,
         used: nextAttempts >= MAX_VERIFY_ATTEMPTS,

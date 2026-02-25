@@ -20,7 +20,7 @@ const NEXT_STATUS: Record<string, string | null> = {
   en_route_pickup: "parcel_picked_up",
   parcel_picked_up: "in_transit",
   in_transit: "near_delivery",
-  near_delivery: "delivered",
+  near_delivery: null,
   incident_open: "incident_resolved",
   incident_resolved: "in_transit",
   delivered: null,
@@ -56,17 +56,22 @@ export default function ShipmentDetailsScreen() {
     api.shipments.listMessages,
     shipmentId ? ({ shipmentId: shipmentId as any, requesterVisitorId: userId, limit: 100 } as any) : "skip"
   );
+  const paymentState = useQuery(
+    api.shipments.getPaymentAndDeliveryState,
+    shipmentId ? ({ shipmentId: shipmentId as any, requesterVisitorId: userId } as any) : "skip"
+  );
 
   const updateStatus = useMutation(api.shipments.updateStatus);
   const sendMessage = useMutation(api.shipments.sendMessage);
   const openIncident = useMutation(api.shipments.openIncident);
+  const confirmPaymentHold = useMutation(api.shipments.confirmPaymentHold);
 
   const role = useMemo(() => {
     if (!shipment) return null;
     return shipment.carrierVisitorId === userId ? "carrier" : "customer";
   }, [shipment, userId]);
 
-  if (shipment === undefined || timeline === undefined || live === undefined || messages === undefined) {
+  if (shipment === undefined || timeline === undefined || live === undefined || messages === undefined || paymentState === undefined) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#2563EB" />
@@ -86,6 +91,18 @@ export default function ShipmentDetailsScreen() {
   const canAdvance =
     suggestedNext !== null &&
     ((role === "carrier" && suggestedNext !== "delivered") || suggestedNext === "delivered");
+
+  const handlePayAndBlockFunds = async () => {
+    try {
+      await confirmPaymentHold({
+        shipmentId: shipment._id,
+        actorVisitorId: userId,
+      });
+      Alert.alert("Paiement securise", "Le paiement est bloque et le QR a ete envoye au destinataire par SMS.");
+    } catch {
+      Alert.alert("Erreur", "Impossible de securiser le paiement pour le moment.");
+    }
+  };
 
   const handleAdvanceStatus = async () => {
     if (!suggestedNext) return;
@@ -139,10 +156,19 @@ export default function ShipmentDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      scrollEventThrottle={16}
+    >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+      >
         <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Retour accueil</Text>
+        <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Suivi du transport</Text>
@@ -153,9 +179,50 @@ export default function ShipmentDetailsScreen() {
           <Ionicons name="cube-outline" size={16} color="#2563EB" />
           <Text style={styles.value}>{shipment.status}</Text>
         </View>
+        <View style={styles.row}>
+          <Ionicons name="wallet-outline" size={16} color="#0EA5E9" />
+          <Text style={styles.value}>Paiement: {shipment.paymentStatus}</Text>
+        </View>
+        <Text style={styles.metaLine}>
+          Montant: {shipment.paymentAmount} {shipment.paymentCurrency}
+        </Text>
+        {shipment.paymentHeldAt ? <Text style={styles.metaLine}>Paiement bloque le: {formatDate(shipment.paymentHeldAt)}</Text> : null}
+        {shipment.paymentReleasedAt ? (
+          <Text style={styles.metaLine}>Paiement libere le: {formatDate(shipment.paymentReleasedAt)}</Text>
+        ) : null}
         <Text style={styles.metaLine}>Assurance eligibilite: {shipment.insuranceEligible ? "OK" : "Bloquee"}</Text>
         <Text style={styles.metaLine}>Dernier tracking: {formatDate(shipment.lastTrackingAt)}</Text>
         {shipment.deliveredAt ? <Text style={styles.metaLine}>Livre le: {formatDate(shipment.deliveredAt)}</Text> : null}
+
+        {paymentState?.verification?.smsStatus ? (
+          <Text style={styles.metaLine}>SMS destinataire: {paymentState.verification.smsStatus}</Text>
+        ) : null}
+        {paymentState?.verification?.expiresAt ? (
+          <Text style={styles.metaLine}>QR expire le: {formatDate(paymentState.verification.expiresAt)}</Text>
+        ) : null}
+
+        {paymentState?.canPay ? (
+          <TouchableOpacity style={styles.payButton} onPress={handlePayAndBlockFunds}>
+            <Text style={styles.primaryButtonText}>Payer et bloquer les fonds</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {role === "customer" && paymentState?.verification?.qrPayload ? (
+          <View style={styles.qrBlock}>
+            <Text style={styles.qrLabel}>QR de remise (a afficher au destinataire)</Text>
+            <Text style={styles.qrValue}>{paymentState.verification.qrPayload}</Text>
+          </View>
+        ) : null}
+
+        {paymentState?.canScanQr ? (
+          <TouchableOpacity
+            style={styles.scanButton}
+            onPress={() => router.push({ pathname: "/shipment-scan" as any, params: { shipmentId: String(shipment._id) } })}
+          >
+            <Ionicons name="scan-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.warningButtonText}>Scanner le QR de remise</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {canAdvance ? (
           <TouchableOpacity
@@ -342,6 +409,42 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
+  },
+  payButton: {
+    marginTop: 8,
+    backgroundColor: "#059669",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  scanButton: {
+    marginTop: 8,
+    backgroundColor: "#0EA5E9",
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  qrBlock: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#334155",
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: "#0B1220",
+    gap: 6,
+  },
+  qrLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontWeight: "700",
+  },
+  qrValue: {
+    fontSize: 13,
+    color: "#E2E8F0",
+    fontWeight: "600",
   },
   warningButtonText: {
     color: "#FFFFFF",

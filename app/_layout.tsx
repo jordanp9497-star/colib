@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Keyboard, TouchableWithoutFeedback } from "react-native";
 import "react-native-reanimated";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { useFonts } from "expo-font";
@@ -96,11 +96,15 @@ export default function RootLayout() {
           <ThemeProvider
             value={themedNavigation}
           >
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="settings" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="light" />
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View style={{ flex: 1 }}>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="settings" options={{ headerShown: false }} />
+                </Stack>
+                <StatusBar style="light" />
+              </View>
+            </TouchableWithoutFeedback>
           </ThemeProvider>
         </ActiveTripProvider>
       </UserProvider>

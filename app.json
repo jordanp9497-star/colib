@@ -63,6 +63,12 @@
           "icon": "./assets/images/icon.png",
           "color": "#2F80ED"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Colib utilise la camera pour scanner le QR de remise et debloquer le paiement transporteur."
+        }
       ]
     ],
     "experiments": {

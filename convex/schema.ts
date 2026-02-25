@@ -76,6 +76,14 @@ const shipmentStatus = v.union(
   v.literal("cancelled")
 );
 
+const shipmentPaymentStatus = v.union(
+  v.literal("pending"),
+  v.literal("held"),
+  v.literal("release_pending"),
+  v.literal("released"),
+  v.literal("failed")
+);
+
 export default defineSchema({
   trips: defineTable({
     ownerVisitorId: v.string(),
@@ -125,6 +133,7 @@ export default defineSchema({
     urgencyLevel: v.union(v.literal("normal"), v.literal("urgent"), v.literal("express")),
     insuranceValue: v.optional(v.number()),
     phone: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
     status: parcelStatus,
     preferredWindowStartTs: v.number(),
     preferredWindowEndTs: v.number(),
@@ -175,6 +184,9 @@ export default defineSchema({
       v.literal("reservation_request"),
       v.literal("reservation_accepted"),
       v.literal("payment_required"),
+      v.literal("delivery_qr_sent"),
+      v.literal("delivery_qr_scanned"),
+      v.literal("payment_released"),
       v.literal("new_match_for_trip"),
       v.literal("trip_session_matches")
     ),
@@ -288,6 +300,13 @@ export default defineSchema({
     carrierVisitorId: v.string(),
     customerVisitorId: v.string(),
     status: shipmentStatus,
+    paymentStatus: shipmentPaymentStatus,
+    paymentAmount: v.number(),
+    paymentCurrency: v.string(),
+    paymentProvider: v.optional(v.string()),
+    paymentReference: v.optional(v.string()),
+    paymentHeldAt: v.optional(v.number()),
+    paymentReleasedAt: v.optional(v.number()),
     insuranceEligible: v.boolean(),
     insuranceBlockedReason: v.optional(v.string()),
     lastTrackingAt: v.optional(v.number()),
@@ -359,14 +378,48 @@ export default defineSchema({
     .index("by_shipment", ["shipmentId"])
     .index("by_status", ["status"]),
 
+  shipmentDeliveryVerifications: defineTable({
+    shipmentId: v.id("shipments"),
+    recipientPhone: v.string(),
+    qrTokenHash: v.string(),
+    qrPayload: v.string(),
+    smsMessage: v.string(),
+    smsStatus: v.union(v.literal("queued"), v.literal("sent"), v.literal("failed")),
+    smsProviderMessageId: v.optional(v.string()),
+    expiresAt: v.number(),
+    scannedAt: v.optional(v.number()),
+    scannedByVisitorId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_shipment", ["shipmentId"])
+    .index("by_hash", ["qrTokenHash"])
+    .index("by_status", ["smsStatus"]),
+
+  outboundMessages: defineTable({
+    channel: v.union(v.literal("sms")),
+    recipient: v.string(),
+    body: v.string(),
+    template: v.string(),
+    status: v.union(v.literal("queued"), v.literal("sent"), v.literal("failed")),
+    provider: v.string(),
+    providerMessageId: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_recipient_created", ["recipient", "createdAt"])
+    .index("by_status_created", ["status", "createdAt"]),
+
   verificationCodes: defineTable({
     email: v.string(),
     code: v.string(),
     visitorId: v.string(),
     expiresAt: v.number(),
     used: v.boolean(),
-    attempts: v.number(),
-    createdAt: v.number(),
+    attempts: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
   })
     .index("by_email_code", ["email", "code"])
     .index("by_visitorId", ["visitorId"])

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Animated, PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type SwipeAction = {
@@ -19,26 +19,42 @@ export function SwipeActionRow({
 }) {
   const maxSwipe = -(actions.length * ACTION_WIDTH);
   const translateX = useRef(new Animated.Value(0)).current;
+  const currentX = useRef(0);
+  const dragStartX = useRef(0);
+
+  useEffect(() => {
+    const id = translateX.addListener(({ value }) => {
+      currentX.current = value;
+    });
+    return () => translateX.removeListener(id);
+  }, [translateX]);
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gesture) =>
         Math.abs(gesture.dx) > 10 && Math.abs(gesture.dy) < 8,
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dy) < 8,
+      onPanResponderGrant: () => {
+        dragStartX.current = currentX.current;
+      },
       onPanResponderMove: (_, gesture) => {
-        if (gesture.dx > 0) return;
-        translateX.setValue(Math.max(maxSwipe, gesture.dx));
+        const nextValue = Math.min(0, Math.max(maxSwipe, dragStartX.current + gesture.dx));
+        translateX.setValue(nextValue);
       },
       onPanResponderRelease: (_, gesture) => {
-        const shouldOpen = gesture.dx < maxSwipe / 3;
+        const shouldOpen = gesture.vx < -0.2 || currentX.current < maxSwipe / 2;
         Animated.spring(translateX, {
           toValue: shouldOpen ? maxSwipe : 0,
           useNativeDriver: true,
           bounciness: 0,
         }).start();
       },
+      onPanResponderTerminationRequest: () => false,
       onPanResponderTerminate: () => {
         Animated.spring(translateX, {
-          toValue: 0,
+          toValue: currentX.current < maxSwipe / 2 ? maxSwipe : 0,
           useNativeDriver: true,
           bounciness: 0,
         }).start();

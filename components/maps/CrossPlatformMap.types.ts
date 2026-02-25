@@ -20,4 +20,5 @@ export type CrossPlatformMapProps = {
   paths?: MapPath[];
   height?: number;
   onPinPress?: (pinId: string) => void;
+  selectedPinId?: string | null;
 };

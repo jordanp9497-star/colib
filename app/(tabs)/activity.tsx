@@ -60,11 +60,16 @@ export default function ActivityScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      nestedScrollEnabled
+      scrollEventThrottle={16}
     >
       {router.canGoBack() ? (
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
+        >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour accueil</Text>
+          <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       ) : null}
 
@@ -96,6 +101,7 @@ export default function ActivityScreen() {
                 notification.matchId && shipments
                   ? shipments.find((shipment) => String(shipment.matchId) === String(notification.matchId))
                   : null;
+              const needsPayment = notification.type === "payment_required" && Boolean(linkedShipment);
 
               return (
                 <SwipeActionRow
@@ -130,6 +136,16 @@ export default function ActivityScreen() {
                           },
                         ]
                       : []),
+                    ...(needsPayment
+                      ? [
+                          {
+                            label: "Payer",
+                            color: Colors.dark.success,
+                            onPress: () =>
+                              router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment?._id) } }),
+                          },
+                        ]
+                      : []),
                   ]}
                 >
                   <View style={[styles.card, !notification.readAt && styles.cardUnread]}>
@@ -156,6 +172,15 @@ export default function ActivityScreen() {
                           onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment._id) } })}
                         >
                           <Text style={styles.trackButtonText}>Voir suivi</Text>
+                        </TouchableOpacity>
+                      ) : null}
+
+                      {needsPayment ? (
+                        <TouchableOpacity
+                          style={styles.acceptButton}
+                          onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment?._id) } })}
+                        >
+                          <Text style={styles.acceptButtonText}>Payer maintenant</Text>
                         </TouchableOpacity>
                       ) : null}
 

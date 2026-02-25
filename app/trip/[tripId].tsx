@@ -54,10 +54,19 @@ export default function TripDetailsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)" as any)}>
-        <Ionicons name="arrow-back" size={16} color="#334155" />
-        <Text style={styles.backButtonText}>Retour accueil</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
+      scrollEventThrottle={16}
+    >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/map" as any))}
+      >
+        <Ionicons name="arrow-back" size={16} color="#CBD5E1" />
+        <Text style={styles.backButtonText}>Retour carte</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Annonce trajet</Text>
@@ -137,11 +146,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: "#161D24",
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
+  backButtonText: { fontSize: 12, fontWeight: "700", color: "#CBD5E1" },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#0F172A",
+    color: "#E2E8F0",
     marginBottom: 6,
   },
   card: {
@@ -154,7 +163,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#0F172A",
+    color: "#F8FAFC",
     marginBottom: 8,
   },
   row: {
@@ -174,17 +183,17 @@ const styles = StyleSheet.create({
   value: {
     marginTop: 4,
     fontSize: 14,
-    color: "#1E293B",
+    color: "#E2E8F0",
     fontWeight: "600",
   },
   metaLine: {
     fontSize: 14,
-    color: "#334155",
+    color: "#CBD5E1",
     marginBottom: 4,
   },
   publisher: {
     fontSize: 15,
-    color: "#1E293B",
+    color: "#E2E8F0",
     fontWeight: "600",
   },
   actionsRow: {
@@ -224,6 +233,6 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#0F172A",
+    color: "#E2E8F0",
   },
 });

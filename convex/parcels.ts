@@ -57,6 +57,7 @@ export const create = mutation({
     preferredWindowStartTs: v.number(),
     preferredWindowEndTs: v.number(),
     phone: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -76,6 +77,7 @@ export const create = mutation({
       urgencyLevel: args.urgencyLevel,
       insuranceValue: args.insuranceValue,
       phone: args.phone,
+      recipientPhone: args.recipientPhone,
       status: "published",
       preferredWindowStartTs: args.preferredWindowStartTs,
       preferredWindowEndTs: args.preferredWindowEndTs,
@@ -107,6 +109,7 @@ export const update = mutation({
     preferredWindowStartTs: v.number(),
     preferredWindowEndTs: v.number(),
     phone: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const parcel = await ctx.db.get(args.parcelId);
@@ -128,6 +131,7 @@ export const update = mutation({
       urgencyLevel: args.urgencyLevel,
       insuranceValue: args.insuranceValue,
       phone: args.phone,
+      recipientPhone: args.recipientPhone,
       status: "published",
       preferredWindowStartTs: args.preferredWindowStartTs,
       preferredWindowEndTs: args.preferredWindowEndTs,

@@ -40,6 +40,7 @@ export default function SendScreen() {
   const [weight, setWeight] = useState("2");
   const [volumeDm3, setVolumeDm3] = useState("12");
   const [description, setDescription] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
   const [shippingDate, setShippingDate] = useState("");
   const [shippingSlot, setShippingSlot] = useState<SlotKey>("afternoon");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -51,6 +52,7 @@ export default function SendScreen() {
     setWeight("2");
     setVolumeDm3("12");
     setDescription("");
+    setRecipientPhone("");
     setShippingDate("");
     setShippingSlot("afternoon");
     setStep(1);
@@ -70,6 +72,7 @@ export default function SendScreen() {
     setWeight(String(parcelToEdit.weight));
     setVolumeDm3(String(parcelToEdit.volumeDm3));
     setDescription(parcelToEdit.description);
+    setRecipientPhone(parcelToEdit.recipientPhone ?? "");
 
     const start = new Date(parcelToEdit.preferredWindowStartTs);
     const day = String(start.getDate()).padStart(2, "0");
@@ -112,6 +115,10 @@ export default function SendScreen() {
       Alert.alert("Itineraire incomplet", "Ajoutez depart et arrivee.");
       return false;
     }
+    if (value === 1 && !/^\+[1-9]\d{7,14}$/.test(recipientPhone.trim())) {
+      Alert.alert("Numero invalide", "Ajoutez le numero du destinataire au format international.");
+      return false;
+    }
     if (value === 2 && !buildWindowTimestamps(shippingDate, shippingSlot)) {
       Alert.alert("Date invalide", "Choisissez une date valide et un creneau.");
       return false;
@@ -129,6 +136,15 @@ export default function SendScreen() {
   const handlePublish = async () => {
     if (!originAddress || !destinationAddress) {
       Alert.alert("Champs requis", "Selectionnez l adresse de depart et l adresse d arrivee.");
+      return;
+    }
+
+    const normalizedRecipientPhone = recipientPhone.trim();
+    if (!/^\+[1-9]\d{7,14}$/.test(normalizedRecipientPhone)) {
+      Alert.alert(
+        "Numero destinataire invalide",
+        "Ajoutez un numero destinataire au format international (ex: +33612345678)."
+      );
       return;
     }
 
@@ -163,6 +179,7 @@ export default function SendScreen() {
         preferredWindowStartTs: timeWindow.windowStartTs,
         preferredWindowEndTs: timeWindow.windowEndTs,
         phone: undefined,
+        recipientPhone: normalizedRecipientPhone,
       };
 
       const parcelRef = isEditMode
@@ -198,13 +215,21 @@ export default function SendScreen() {
         style={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        scrollEventThrottle={16}
       >
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => (step === 1 ? router.replace("/(tabs)" as any) : setStep((prev) => prev - 1))}
+          onPress={() =>
+            step === 1
+              ? router.canGoBack()
+                ? router.back()
+                : router.replace("/(tabs)" as any)
+              : setStep((prev) => prev - 1)
+          }
         >
           <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>{step === 1 ? "Retour accueil" : "Etape precedente"}</Text>
+          <Text style={styles.backButtonText}>{step === 1 ? "Retour" : "Etape precedente"}</Text>
         </TouchableOpacity>
 
         <Text style={styles.header}>{isEditMode ? "Modifier mon colis" : "Publier un colis"}</Text>
@@ -228,6 +253,17 @@ export default function SendScreen() {
               placeholder="Saisissez puis choisissez"
               value={destinationAddress}
               onChange={setDestinationAddress}
+            />
+
+            <Text style={styles.label}>Numero du destinataire (SMS QR)</Text>
+            <TextInput
+              style={styles.input}
+              value={recipientPhone}
+              onChangeText={setRecipientPhone}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              placeholder="Ex: +33612345678"
+              placeholderTextColor={Colors.dark.textSecondary}
             />
           </>
         ) : null}
@@ -295,6 +331,7 @@ export default function SendScreen() {
             <Text style={styles.stepTitle}>Verification</Text>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLine}>Itineraire: {originAddress?.label ?? "-"}{" -> "}{destinationAddress?.label ?? "-"}</Text>
+              <Text style={styles.summaryLine}>Destinataire: {recipientPhone || "-"}</Text>
               <Text style={styles.summaryLine}>Date: {shippingDate || "-"}</Text>
               <Text style={styles.summaryLine}>Creneau: {shippingSlot}</Text>
               <Text style={styles.summaryLine}>Taille: {size}</Text>
