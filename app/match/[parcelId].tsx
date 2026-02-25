@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
@@ -97,6 +98,11 @@ export default function ParcelMatchScreen() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Text style={styles.backButtonText}>Precedent</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Matches colis</Text>
       <Text style={styles.subtitle}>{`${parcel?.origin ?? ""} -> ${parcel?.destination ?? ""}`}</Text>
 
@@ -151,6 +157,20 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
   subtitle: { marginTop: 4, marginBottom: 12, fontSize: 13, color: "#64748B" },
   sortRow: { flexDirection: "row", gap: 8, marginVertical: 12, flexWrap: "wrap" },
+  backButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   sortChip: {
     borderWidth: 1,
     borderColor: "#CBD5E1",

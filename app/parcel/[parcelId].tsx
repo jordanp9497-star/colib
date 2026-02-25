@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -66,6 +66,11 @@ export default function ParcelDetailsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Text style={styles.backButtonText}>Precedent</Text>
+      </TouchableOpacity>
+
       <Text style={styles.title}>Annonce colis</Text>
 
       <View style={styles.card}>
@@ -135,6 +140,20 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 10,
   },
+  backButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+    backgroundColor: "#FFFFFF",
+  },
+  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   title: {
     fontSize: 24,
     fontWeight: "700",

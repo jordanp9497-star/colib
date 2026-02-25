@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as compliance from "../compliance.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as lib_address from "../lib/address.js";
 import type * as lib_geo from "../lib/geo.js";
@@ -17,6 +18,7 @@ import type * as matches from "../matches.js";
 import type * as notifications from "../notifications.js";
 import type * as parcels from "../parcels.js";
 import type * as reviews from "../reviews.js";
+import type * as shipments from "../shipments.js";
 import type * as trips from "../trips.js";
 import type * as users from "../users.js";
 
@@ -27,6 +29,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  compliance: typeof compliance;
   emailVerification: typeof emailVerification;
   "lib/address": typeof lib_address;
   "lib/geo": typeof lib_geo;
@@ -36,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   parcels: typeof parcels;
   reviews: typeof reviews;
+  shipments: typeof shipments;
   trips: typeof trips;
   users: typeof users;
 }>;

@@ -23,11 +23,11 @@ export default function RootLayout() {
       <View style={setupStyles.container}>
         <Text style={setupStyles.title}>Configuration requise</Text>
         <Text style={setupStyles.text}>
-          EXPO_PUBLIC_CONVEX_URL n'est pas defini.
+          EXPO_PUBLIC_CONVEX_URL nest pas defini.
         </Text>
         <Text style={setupStyles.code}>npx convex dev</Text>
         <Text style={setupStyles.text}>
-          Cette commande creera le fichier .env.local avec l'URL Convex.
+          Cette commande creera le fichier .env.local avec URL Convex.
         </Text>
       </View>
     );

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  SectionList,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -58,7 +57,6 @@ function RegistrationFlow({
   // Email verification
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [betaCode, setBetaCode] = useState<string | null>(null);
   const [codeSent, setCodeSent] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
@@ -81,7 +79,6 @@ function RegistrationFlow({
     }
     try {
       const result = await requestCode({ visitorId: userId, email: email.trim() });
-      setBetaCode(result.code);
       setCodeSent(true);
       Alert.alert(
         "Code envoye (BETA)",
@@ -212,11 +209,10 @@ function RegistrationFlow({
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.resendButton}
-            onPress={() => {
-              setCodeSent(false);
-              setVerificationCode("");
-              setBetaCode(null);
-            }}
+              onPress={() => {
+                setCodeSent(false);
+                setVerificationCode("");
+              }}
           >
             <Text style={styles.linkText}>Renvoyer le code</Text>
           </TouchableOpacity>
@@ -244,11 +240,14 @@ function LoggedInProfile({
   const myParcels = useQuery(api.parcels.getByUser, { userId });
   const notifications = useQuery(api.notifications.listForUser, { userId });
   const reviews = useQuery(api.reviews.getForUser, { revieweeId: userId });
+  const shipments = useQuery(api.shipments.listForUser, { requesterVisitorId: userId, limit: 100 });
+  const compliance = useQuery(api.compliance.getCarrierCompliance, { carrierVisitorId: userId });
   const { logout } = useUser();
 
   const generateUploadUrl = useMutation(api.users.generateUploadUrl);
   const saveProfilePhoto = useMutation(api.users.saveProfilePhoto);
   const saveIdentityDocs = useMutation(api.users.saveIdentityDocuments);
+  const submitCarrierDocuments = useMutation(api.compliance.submitCarrierDocuments);
   const removeTrip = useMutation(api.trips.remove);
   const removeParcel = useMutation(api.parcels.remove);
   const acceptReservationRequest = useMutation(api.matches.acceptReservationRequest);
@@ -257,6 +256,10 @@ function LoggedInProfile({
   const [uploading, setUploading] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
   const [uploadingCg, setUploadingCg] = useState(false);
+  const [idCardExpiryInput, setIdCardExpiryInput] = useState("");
+  const [carteGriseExpiryInput, setCarteGriseExpiryInput] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+  const [submittingCompliance, setSubmittingCompliance] = useState(false);
 
   // Email verification (si pas encore fait)
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -383,6 +386,51 @@ function LoggedInProfile({
     }
   };
 
+  const parseExpiryInputToTimestamp = (value: string) => {
+    const normalized = value.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
+    const ts = Date.parse(`${normalized}T23:59:59`);
+    if (Number.isNaN(ts)) return null;
+    return ts;
+  };
+
+  const handleSubmitCompliance = async () => {
+    if (!user.idCardPhotoId || !user.carteGrisePhotoId) {
+      Alert.alert("Documents requis", "Ajoutez la piece identite et la carte grise avant envoi.");
+      return;
+    }
+
+    const idCardExpiresAt = parseExpiryInputToTimestamp(idCardExpiryInput);
+    const carteGriseExpiresAt = parseExpiryInputToTimestamp(carteGriseExpiryInput);
+    if (!idCardExpiresAt || !carteGriseExpiresAt) {
+      Alert.alert("Dates invalides", "Utilisez le format YYYY-MM-DD pour les deux dates.");
+      return;
+    }
+
+    const plate = vehiclePlate.trim().toUpperCase();
+    if (plate.length < 4) {
+      Alert.alert("Plaque invalide", "Entrez un numero de plaque valide.");
+      return;
+    }
+
+    setSubmittingCompliance(true);
+    try {
+      const result = await submitCarrierDocuments({
+        carrierVisitorId: userId,
+        idCardStorageId: user.idCardPhotoId as any,
+        carteGriseStorageId: user.carteGrisePhotoId as any,
+        idCardExpiresAt,
+        carteGriseExpiresAt,
+        vehiclePlateNumber: plate,
+      });
+      Alert.alert("Dossier envoye", `Statut actuel: ${result.status}`);
+    } catch {
+      Alert.alert("Erreur", "Impossible de soumettre le dossier transporteur.");
+    } finally {
+      setSubmittingCompliance(false);
+    }
+  };
+
   const handleSendCode = async () => {
     if (!email.trim() || !email.includes("@")) {
       Alert.alert("Email invalide", "Veuillez entrer un email valide.");
@@ -498,6 +546,10 @@ function LoggedInProfile({
     } catch {
       // Ignore read errors in UI.
     }
+  };
+
+  const handleOpenShipment = (shipmentId: string) => {
+    router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId } });
   };
 
   return (
@@ -624,13 +676,24 @@ function LoggedInProfile({
         {/* Section Verification d'identite */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionLabel}>Verification d'identite</Text>
+            <Text style={styles.sectionLabel}>Verification identite</Text>
             <VerificationBadge type="beta" />
           </View>
           <Text style={styles.sectionDescription}>
             Verifiez votre identite pour rassurer les autres utilisateurs.
             Les transporteurs peuvent aussi ajouter leur carte grise.
           </Text>
+
+          {compliance ? (
+            <View style={styles.complianceCard}>
+              <Text style={styles.complianceTitle}>Dossier transporteur</Text>
+              <Text style={styles.complianceLine}>Statut: {compliance.status}</Text>
+              <Text style={styles.complianceLine}>Risque: {compliance.riskLevel}</Text>
+              {compliance.reviewReason ? <Text style={styles.complianceLine}>Motif: {compliance.reviewReason}</Text> : null}
+            </View>
+          ) : (
+            <Text style={styles.sectionDescription}>Aucun dossier transporteur soumis.</Text>
+          )}
 
           {user.identityVerified !== "none" && (
             <View style={styles.statusRow}>
@@ -686,6 +749,45 @@ function LoggedInProfile({
               </>
             )}
           </TouchableOpacity>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Expiration piece identite (YYYY-MM-DD)"
+            placeholderTextColor="#94A3B8"
+            value={idCardExpiryInput}
+            onChangeText={setIdCardExpiryInput}
+            autoCapitalize="none"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Expiration carte grise (YYYY-MM-DD)"
+            placeholderTextColor="#94A3B8"
+            value={carteGriseExpiryInput}
+            onChangeText={setCarteGriseExpiryInput}
+            autoCapitalize="none"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Numero de plaque"
+            placeholderTextColor="#94A3B8"
+            value={vehiclePlate}
+            onChangeText={setVehiclePlate}
+            autoCapitalize="characters"
+          />
+
+          <TouchableOpacity
+            style={[styles.smallPrimaryButton, submittingCompliance && styles.disabledButton]}
+            onPress={handleSubmitCompliance}
+            disabled={submittingCompliance}
+          >
+            {submittingCompliance ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Soumettre dossier transporteur</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Section Avis */}
@@ -723,6 +825,10 @@ function LoggedInProfile({
                 notification.type === "reservation_request" &&
                 notification.matchId &&
                 notification.matchStatus === "requested";
+              const linkedShipment =
+                notification.matchId && shipments
+                  ? shipments.find((shipment) => String(shipment.matchId) === String(notification.matchId))
+                  : null;
 
               return (
                 <View
@@ -738,6 +844,15 @@ function LoggedInProfile({
                         onPress={() => handleAcceptReservation(String(notification.matchId))}
                       >
                         <Text style={styles.acceptButtonText}>Accepter le transport</Text>
+                      </TouchableOpacity>
+                    ) : null}
+
+                    {linkedShipment ? (
+                      <TouchableOpacity
+                        style={styles.trackButton}
+                        onPress={() => handleOpenShipment(String(linkedShipment._id))}
+                      >
+                        <Text style={styles.trackButtonText}>Ouvrir suivi</Text>
                       </TouchableOpacity>
                     ) : null}
 
@@ -778,7 +893,7 @@ function LoggedInProfile({
                 ))
               ) : (
                 <Text style={styles.emptySection}>
-                  Vous n'avez pas encore propose de trajet
+                  Vous navez pas encore propose de trajet
                 </Text>
               )}
             </View>
@@ -798,7 +913,7 @@ function LoggedInProfile({
                 ))
               ) : (
                 <Text style={styles.emptySection}>
-                  Vous n'avez pas encore envoye de colis
+                  Vous navez pas encore envoye de colis
                 </Text>
               )}
             </View>
@@ -1018,6 +1133,25 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 12,
   },
+  complianceCard: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    padding: 10,
+    marginBottom: 12,
+  },
+  complianceTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E3A8A",
+    marginBottom: 4,
+  },
+  complianceLine: {
+    fontSize: 12,
+    color: "#1E40AF",
+    marginBottom: 2,
+  },
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1136,6 +1270,17 @@ const styles = StyleSheet.create({
   readButtonText: {
     color: "#334155",
     fontWeight: "600",
+    fontSize: 12,
+  },
+  trackButton: {
+    backgroundColor: "#0284C7",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  trackButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
     fontSize: 12,
   },
   emptySection: {

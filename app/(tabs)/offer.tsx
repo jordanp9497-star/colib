@@ -39,6 +39,17 @@ export default function OfferScreen() {
   const [tripDate, setTripDate] = useState("");
   const [maxDetourMinutes, setMaxDetourMinutes] = useState(20);
 
+  const resetForm = () => {
+    setOriginAddress(null);
+    setDestinationAddress(null);
+    setAvailableSpace("moyen");
+    setMaxWeightKg("20");
+    setMaxVolumeDm3("60");
+    setBasePrice("15");
+    setTripDate("");
+    setMaxDetourMinutes(20);
+  };
+
   const canEditTrip = useMemo(() => {
     if (!tripToEdit) return false;
     return tripToEdit.ownerVisitorId === userId;
@@ -137,6 +148,7 @@ export default function OfferScreen() {
         Alert.alert("Annonce mise a jour", "Votre annonce trajet a ete modifiee.");
         router.replace("/(tabs)/profile");
       } else {
+        resetForm();
         Alert.alert("Trajet publie", "Les colis compatibles sont visibles dans l'onglet Carte.");
       }
     } catch {
@@ -150,6 +162,13 @@ export default function OfferScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {isEditMode ? (
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={16} color="#334155" />
+            <Text style={styles.backButtonText}>Precedent</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <Text style={styles.header}>{isEditMode ? "Modifier mon trajet" : "Publier un trajet"}</Text>
 
         <AddressAutocompleteInput
@@ -247,6 +266,20 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
   chipText: { color: "#334155", fontWeight: "600" },
   chipTextActive: { color: "#FFFFFF" },
+  backButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   button: {
     marginTop: 20,
     backgroundColor: "#4F46E5",

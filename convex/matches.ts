@@ -1,8 +1,35 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { computeDynamicPrice } from "../packages/shared/pricing";
 import { computeMatchScore, explainRanking, sizeIsCompatible } from "./lib/matching";
 import { distancePointToSegmentKm, windowsOverlap } from "./lib/geo";
+
+async function validateCarrierComplianceOrThrow(
+  ctx: MutationCtx,
+  carrierVisitorId: string
+) {
+  const compliance = await ctx.db
+    .query("carrierCompliance")
+    .withIndex("by_carrier", (q) => q.eq("carrierVisitorId", carrierVisitorId))
+    .first();
+
+  if (!compliance) {
+    throw new Error("Transporteur non conforme: documents non soumis");
+  }
+  if (compliance.status !== "approved") {
+    throw new Error("Transporteur non conforme: validation en attente ou refusee");
+  }
+
+  const now = Date.now();
+  if (
+    (compliance.idCardExpiresAt !== undefined && compliance.idCardExpiresAt <= now) ||
+    (compliance.carteGriseExpiresAt !== undefined && compliance.carteGriseExpiresAt <= now)
+  ) {
+    throw new Error("Transporteur non conforme: document expire");
+  }
+
+  return compliance;
+}
 
 function estimateDetourMinutes(
   trip: { originAddress: { lat: number; lng: number }; destinationAddress: { lat: number; lng: number } },
@@ -336,6 +363,8 @@ export const acceptReservationRequest = mutation({
     const trip = await ctx.db.get(match.tripId);
     if (!trip) throw new Error("Trajet introuvable");
 
+    await validateCarrierComplianceOrThrow(ctx, trip.ownerVisitorId);
+
     const now = Date.now();
     await ctx.db.patch(match._id, {
       status: "accepted",
@@ -362,6 +391,52 @@ export const acceptReservationRequest = mutation({
       pricingEstimate: match.pricingEstimate,
       updatedAt: now,
     });
+
+    const existingShipment = await ctx.db
+      .query("shipments")
+      .withIndex("by_match", (q) => q.eq("matchId", match._id))
+      .first();
+
+    if (!existingShipment) {
+      const shipmentId = await ctx.db.insert("shipments", {
+        matchId: match._id,
+        tripId: trip._id,
+        parcelId: parcel._id,
+        carrierVisitorId: trip.ownerVisitorId,
+        customerVisitorId: parcel.ownerVisitorId,
+        status: "carrier_assigned",
+        insuranceEligible: true,
+        insuranceBlockedReason: undefined,
+        lastTrackingAt: undefined,
+        deliveredAt: undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await ctx.db.insert("shipmentEvents", {
+        shipmentId,
+        eventType: "shipment_created",
+        actorVisitorId: parcel.ownerVisitorId,
+        fromStatus: undefined,
+        toStatus: "carrier_assigned",
+        payload: {
+          tripId: trip._id,
+          parcelId: parcel._id,
+          amount: match.pricingEstimate.totalAmount,
+        },
+        createdAt: now,
+      });
+
+      await ctx.db.insert("shipmentMessages", {
+        shipmentId,
+        senderVisitorId: parcel.ownerVisitorId,
+        senderRole: "system",
+        body: "Transport confirme. Utilisez cette messagerie pour echanger en securite.",
+        moderationFlags: [],
+        createdAt: now,
+        readAt: undefined,
+      });
+    }
 
     if (trip.ownerVisitorId !== parcel.ownerVisitorId) {
       await ctx.db.insert("notifications", {

@@ -54,6 +54,28 @@ const pricingBreakdown = v.object({
   ),
 });
 
+const complianceStatus = v.union(
+  v.literal("not_submitted"),
+  v.literal("pending_review"),
+  v.literal("approved"),
+  v.literal("rejected"),
+  v.literal("suspended")
+);
+
+const riskLevel = v.union(v.literal("low"), v.literal("medium"), v.literal("high"));
+
+const shipmentStatus = v.union(
+  v.literal("carrier_assigned"),
+  v.literal("en_route_pickup"),
+  v.literal("parcel_picked_up"),
+  v.literal("in_transit"),
+  v.literal("near_delivery"),
+  v.literal("delivered"),
+  v.literal("incident_open"),
+  v.literal("incident_resolved"),
+  v.literal("cancelled")
+);
+
 export default defineSchema({
   trips: defineTable({
     ownerVisitorId: v.string(),
@@ -212,6 +234,104 @@ export default defineSchema({
   })
     .index("by_visitorId", ["visitorId"])
     .index("by_email", ["email"]),
+
+  carrierCompliance: defineTable({
+    carrierVisitorId: v.string(),
+    status: complianceStatus,
+    riskLevel: riskLevel,
+    idCardStorageId: v.optional(v.id("_storage")),
+    carteGriseStorageId: v.optional(v.id("_storage")),
+    idCardExpiresAt: v.optional(v.number()),
+    carteGriseExpiresAt: v.optional(v.number()),
+    vehiclePlateNumber: v.optional(v.string()),
+    reviewReason: v.optional(v.string()),
+    requiresManualReview: v.boolean(),
+    reviewedByVisitorId: v.optional(v.string()),
+    reviewedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_carrier", ["carrierVisitorId"])
+    .index("by_status", ["status"])
+    .index("by_status_updated", ["status", "updatedAt"]),
+
+  shipments: defineTable({
+    matchId: v.id("matches"),
+    tripId: v.id("trips"),
+    parcelId: v.id("parcels"),
+    carrierVisitorId: v.string(),
+    customerVisitorId: v.string(),
+    status: shipmentStatus,
+    insuranceEligible: v.boolean(),
+    insuranceBlockedReason: v.optional(v.string()),
+    lastTrackingAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_match", ["matchId"])
+    .index("by_trip", ["tripId"])
+    .index("by_parcel", ["parcelId"])
+    .index("by_carrier", ["carrierVisitorId"])
+    .index("by_customer", ["customerVisitorId"])
+    .index("by_status_updated", ["status", "updatedAt"]),
+
+  shipmentEvents: defineTable({
+    shipmentId: v.id("shipments"),
+    eventType: v.string(),
+    actorVisitorId: v.optional(v.string()),
+    fromStatus: v.optional(shipmentStatus),
+    toStatus: v.optional(shipmentStatus),
+    payload: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_shipment_created", ["shipmentId", "createdAt"]),
+
+  shipmentTrackingPoints: defineTable({
+    shipmentId: v.id("shipments"),
+    carrierVisitorId: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    speedKmh: v.optional(v.number()),
+    heading: v.optional(v.number()),
+    accuracyMeters: v.optional(v.number()),
+    recordedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_shipment_recorded", ["shipmentId", "recordedAt"]),
+
+  shipmentMessages: defineTable({
+    shipmentId: v.id("shipments"),
+    senderVisitorId: v.string(),
+    senderRole: v.union(v.literal("carrier"), v.literal("customer"), v.literal("system")),
+    body: v.string(),
+    moderationFlags: v.array(v.string()),
+    createdAt: v.number(),
+    readAt: v.optional(v.number()),
+  })
+    .index("by_shipment_created", ["shipmentId", "createdAt"]),
+
+  shipmentIncidents: defineTable({
+    shipmentId: v.id("shipments"),
+    openedByVisitorId: v.string(),
+    type: v.union(
+      v.literal("delay"),
+      v.literal("pickup_failed"),
+      v.literal("delivery_failed"),
+      v.literal("damage"),
+      v.literal("lost"),
+      v.literal("other")
+    ),
+    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    status: v.union(v.literal("open"), v.literal("resolved")),
+    description: v.optional(v.string()),
+    resolutionNote: v.optional(v.string()),
+    openedAt: v.number(),
+    closedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_shipment", ["shipmentId"])
+    .index("by_status", ["status"]),
 
   verificationCodes: defineTable({
     email: v.string(),

@@ -39,6 +39,17 @@ export default function SendScreen() {
   const [shippingDate, setShippingDate] = useState("");
   const [shippingSlot, setShippingSlot] = useState<SlotKey>("afternoon");
 
+  const resetForm = () => {
+    setOriginAddress(null);
+    setDestinationAddress(null);
+    setSize("petit");
+    setWeight("2");
+    setVolumeDm3("12");
+    setDescription("");
+    setShippingDate("");
+    setShippingSlot("afternoon");
+  };
+
   const canEditParcel = useMemo(() => {
     if (!parcelToEdit) return false;
     return parcelToEdit.ownerVisitorId === userId;
@@ -149,6 +160,7 @@ export default function SendScreen() {
         Alert.alert("Annonce mise a jour", "Votre annonce colis a ete modifiee.");
         router.replace("/(tabs)/profile");
       } else {
+        resetForm();
         router.push(`/match/${parcelRef.parcelId}` as any);
       }
     } catch {
@@ -162,6 +174,13 @@ export default function SendScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.content} style={styles.container}>
+        {isEditMode ? (
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={16} color="#334155" />
+            <Text style={styles.backButtonText}>Precedent</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <Text style={styles.header}>{isEditMode ? "Modifier mon colis" : "Publier un colis"}</Text>
 
         <AddressAutocompleteInput
@@ -252,6 +271,20 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#4F46E5", borderColor: "#4F46E5" },
   chipText: { color: "#334155", fontWeight: "600" },
   chipTextActive: { color: "#FFFFFF" },
+  backButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
   button: {
     marginTop: 20,
     backgroundColor: "#4F46E5",
