@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,14 +10,27 @@ import { BackButton } from "@/components/ui/back-button";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { formatShortAddress } from "@/utils/address";
 import { Colors, Fonts } from "@/constants/theme";
+import { useSearchFlow } from "@/context/SearchFlowContext";
 
 export default function TripDetailsScreen() {
-  const params = useLocalSearchParams<{ tripId?: string }>();
+  const params = useLocalSearchParams<{ tripId?: string; fromSearch?: string }>();
   const tripId = typeof params.tripId === "string" ? params.tripId : undefined;
+  const fromSearch = params.fromSearch === "1";
   const { userId } = useUser();
+  const { newSearch, setSelectedTripId, results } = useSearchFlow();
 
   const trip = useQuery(api.trips.getById, tripId ? { tripId: tripId as any } : "skip");
   const removeTrip = useMutation(api.trips.remove);
+
+  useEffect(() => {
+    if (!fromSearch || !tripId || results.length === 0) {
+      return;
+    }
+    const inCurrentResults = results.some((entry) => String(entry._id) === String(tripId));
+    if (!inCurrentResults) {
+      router.replace("/search/results" as any);
+    }
+  }, [fromSearch, results, tripId]);
 
   if (trip === undefined) {
     return (
@@ -65,7 +79,14 @@ export default function TripDetailsScreen() {
       nestedScrollEnabled
       scrollEventThrottle={16}
     >
-      <BackButton label="Retour carte" onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/map" as any))} />
+      <BackButton
+        label={fromSearch ? "Retour resultats" : "Retour carte"}
+        onPress={() =>
+          router.canGoBack()
+            ? router.back()
+            : router.replace(fromSearch ? ("/search/results" as any) : ("/(tabs)/map" as any))
+        }
+      />
 
       <Text style={styles.title}>Annonce trajet</Text>
 
@@ -114,6 +135,33 @@ export default function TripDetailsScreen() {
           <ActionButton label="Supprimer l'annonce" variant="danger" size="sm" style={styles.deleteButton} onPress={handleDeleteTrip} />
         </View>
       ) : null}
+
+      {!isOwner ? (
+        <View style={styles.actionsRow}>
+          <ActionButton
+            label="Proposer un colis"
+            size="sm"
+            style={styles.editButton}
+            onPress={() => {
+              setSelectedTripId(String(trip._id));
+              router.push({ pathname: "/(tabs)/send", params: { proposalTripId: String(trip._id) } } as any);
+            }}
+          />
+        </View>
+      ) : null}
+
+      <ActionButton
+        label="Nouvelle recherche"
+        variant="secondary"
+        size="sm"
+        style={styles.newSearchButton}
+        onPress={() =>
+          void (async () => {
+            await newSearch();
+            router.replace("/(tabs)" as any);
+          })()
+        }
+      />
     </ScrollView>
   );
 }
@@ -183,6 +231,10 @@ const styles = StyleSheet.create({
     minHeight: 42,
   },
   deleteButton: {
+    minHeight: 42,
+  },
+  newSearchButton: {
+    marginTop: 2,
     minHeight: 42,
   },
   center: {

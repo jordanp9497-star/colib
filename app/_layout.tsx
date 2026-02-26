@@ -16,6 +16,7 @@ import { Sora_600SemiBold, Sora_700Bold } from "@expo-google-fonts/sora";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { UserProvider } from "@/context/UserContext";
 import { ActiveTripProvider } from "@/context/ActiveTripContext";
+import { SearchFlowProvider } from "@/context/SearchFlowContext";
 import { ColibLogoMark } from "@/components/branding/ColibLogoMark";
 import { Colors, Fonts, Typography } from "@/constants/theme";
 
@@ -93,17 +94,19 @@ export default function RootLayout() {
     <ConvexProvider client={convex}>
       <UserProvider>
         <ActiveTripProvider>
-          <ThemeProvider
-            value={themedNavigation}
-          >
-            <View style={{ flex: 1 }}>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="settings" options={{ headerShown: false }} />
-              </Stack>
-              <StatusBar style="light" />
-            </View>
-          </ThemeProvider>
+          <SearchFlowProvider>
+            <ThemeProvider
+              value={themedNavigation}
+            >
+              <View style={{ flex: 1 }}>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="settings" options={{ headerShown: false }} />
+                </Stack>
+                <StatusBar style="light" />
+              </View>
+            </ThemeProvider>
+          </SearchFlowProvider>
         </ActiveTripProvider>
       </UserProvider>
     </ConvexProvider>

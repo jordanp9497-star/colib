@@ -1,20 +1,31 @@
-import { Tabs } from "expo-router";
+import { router, Tabs } from "expo-router";
 import React from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { Colors, Fonts } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ActiveTripBanner } from "@/components/trips/ActiveTripBanner";
+import { useUser } from "@/context/UserContext";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "dark"];
+  const { isLoggedIn, isLoading } = useUser();
+  const blockedColor = "#657386";
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ActiveTripBanner />
+      {isLoggedIn ? <ActiveTripBanner /> : null}
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -63,9 +74,17 @@ export default function TabLayout() {
             title: "Publier",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={size} color={color} />
+                <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={size} color={!isLoggedIn ? blockedColor : color} />
               </View>
             ),
+            tabBarItemStyle: !isLoggedIn ? styles.lockedTabItem : undefined,
+          }}
+          listeners={{
+            tabPress: (event) => {
+              if (isLoggedIn) return;
+              event.preventDefault();
+              router.push("/(tabs)/profile");
+            },
           }}
         />
         <Tabs.Screen
@@ -74,9 +93,17 @@ export default function TabLayout() {
             title: "Activite",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={color} />
+                <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={!isLoggedIn ? blockedColor : color} />
               </View>
             ),
+            tabBarItemStyle: !isLoggedIn ? styles.lockedTabItem : undefined,
+          }}
+          listeners={{
+            tabPress: (event) => {
+              if (isLoggedIn) return;
+              event.preventDefault();
+              router.push("/(tabs)/profile");
+            },
           }}
         />
         <Tabs.Screen
@@ -108,9 +135,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.dark.background,
   },
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.background,
+  },
   tabIconWrap: {
     alignItems: "center",
     justifyContent: "center",
     paddingTop: 2,
+  },
+  lockedTabItem: {
+    opacity: 0.45,
   },
 });

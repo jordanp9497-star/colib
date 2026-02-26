@@ -9,6 +9,7 @@
  */
 
 import type * as compliance from "../compliance.js";
+import type * as dev from "../dev.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as lib_address from "../lib/address.js";
 import type * as lib_geo from "../lib/geo.js";
@@ -31,6 +32,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   compliance: typeof compliance;
+  dev: typeof dev;
   emailVerification: typeof emailVerification;
   "lib/address": typeof lib_address;
   "lib/geo": typeof lib_geo;

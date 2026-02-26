@@ -104,3 +104,43 @@ Recommended restrictions in Google Cloud Console:
 5. Save and wait a few minutes for propagation.
 
 If your infra has no stable outbound IP in dev, keep the key unrestricted only temporarily and still keep API restrictions enabled.
+
+## OAuth setup (Google + Apple)
+
+The profile screen now supports:
+
+- Complete local profile creation (name, phone, full address)
+- Sign in with Google (iOS, Android, Web)
+- Sign in with Apple (iOS only)
+
+### Required env vars
+
+Add these values in `.env.local`:
+
+```bash
+EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=...
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=...
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=...
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
+```
+
+### Google Cloud Console (activate Google auth)
+
+1. Open Google Cloud Console and select/create a project.
+2. Go to **APIs & Services -> OAuth consent screen**.
+3. Configure app name, support email, developer email.
+4. Add scopes: `openid`, `email`, `profile`.
+5. Add test users while the app is in testing mode.
+6. Go to **APIs & Services -> Credentials -> Create credentials -> OAuth client ID**.
+7. Create clients for each platform:
+   - Web application -> copy client id to `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+   - iOS -> copy client id to `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+   - Android -> copy client id to `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
+8. For Expo development flow, also create/copy an Expo client id and set `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID`.
+9. Save, wait 1-5 minutes, then restart Expo.
+
+### Apple sign in (iOS)
+
+1. In Apple Developer, enable **Sign in with Apple** for your App ID.
+2. Ensure the iOS bundle identifier matches `app.json` (`com.jojo946.colib`).
+3. Build a development client or production build (Apple sign in is not available in plain Expo Go).

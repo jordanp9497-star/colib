@@ -22,11 +22,21 @@ function formatRelativeDate(timestamp: number) {
 }
 
 export default function ActivityScreen() {
-  const { userId } = useUser();
-  const notifications = useQuery(api.notifications.listForUser, { userId });
-  const shipments = useQuery(api.shipments.listForUser, { requesterVisitorId: userId, limit: 100 });
+  const { userId, isLoggedIn } = useUser();
+  const notifications = useQuery(api.notifications.listForUser, isLoggedIn ? { userId } : "skip");
+  const shipments = useQuery(api.shipments.listForUser, isLoggedIn ? { requesterVisitorId: userId, limit: 100 } : "skip");
   const acceptReservationRequest = useMutation(api.matches.acceptReservationRequest);
   const markNotificationAsRead = useMutation(api.notifications.markAsRead);
+
+  if (!isLoggedIn) {
+    return (
+      <View style={styles.blockedWrap}>
+        <Ionicons name="lock-closed-outline" size={22} color={Colors.dark.textSecondary} />
+        <Text style={styles.title}>Connectez-vous pour voir votre activite</Text>
+        <Text style={styles.subtitle}>Les notifications, demandes et suivis apparaissent apres connexion.</Text>
+      </View>
+    );
+  }
 
   const handleAcceptReservation = async (matchId: string) => {
     try {
@@ -244,6 +254,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
+  },
+  blockedWrap: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
   content: {
     paddingHorizontal: 16,

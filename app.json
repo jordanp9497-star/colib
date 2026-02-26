@@ -2,6 +2,7 @@
   "expo": {
     "name": "colib",
     "slug": "colib",
+    "owner": "jojo946",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,6 +11,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Colib utilise votre position pour demarrer et suivre votre trajet.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Colib peut suivre votre trajet en arriere-plan pour detecter des opportunites colis.",
@@ -24,6 +26,7 @@
       "bundleIdentifier": "com.jojo946.colib"
     },
     "android": {
+      "package": "com.jojo946.colib",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -82,7 +85,8 @@
         {
           "cameraPermission": "Colib utilise la camera pour scanner le QR de remise et debloquer le paiement transporteur."
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

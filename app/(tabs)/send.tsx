@@ -28,6 +28,7 @@ import { distancePointToSegmentKm } from "@/packages/shared/tripSessionMatching"
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { buildWindowTimestamps, TimeWindowInput, type SlotKey } from "@/components/forms/TimeWindowInput";
 import { Colors, Fonts } from "@/constants/theme";
+import { useSearchFlow } from "@/context/SearchFlowContext";
 
 const TOTAL_STEPS = 4;
 const PROPOSAL_DEFAULT_SIZE: "petit" | "moyen" | "grand" = "petit";
@@ -91,6 +92,7 @@ function hasValidLatLng(value: unknown): value is { lat: number; lng: number } {
 
 export default function SendScreen() {
   const { userId, userName, isLoggedIn } = useUser();
+  const { newSearch } = useSearchFlow();
   const params = useLocalSearchParams<{ parcelId?: string; proposalTripId?: string }>();
   const parcelId = typeof params.parcelId === "string" ? params.parcelId : undefined;
   const proposalTripId = typeof params.proposalTripId === "string" ? params.proposalTripId : undefined;
@@ -264,6 +266,16 @@ export default function SendScreen() {
     setDestinationAddress((current) => current ?? (proposalTrip.destinationAddress as GeocodedAddress));
     setProposalDefaultsApplied(true);
   }, [isEditMode, proposalDefaultsApplied, proposalRouteBounds, proposalTrip]);
+
+  useEffect(() => {
+    if (!isProposalMode || proposalTrip === undefined) {
+      return;
+    }
+    if (!proposalTrip || proposalTrip.status !== "published") {
+      Alert.alert("Trajet indisponible", "Ce trajet n'est plus disponible. Lancez une nouvelle recherche.");
+      router.replace("/search/results" as any);
+    }
+  }, [isProposalMode, proposalTrip]);
 
   if (!isLoggedIn) {
     return (
@@ -551,6 +563,19 @@ export default function SendScreen() {
               style={styles.button}
               iconLeft={<Ionicons name="paper-plane-outline" size={18} color={Colors.dark.text} />}
               onPress={() => void handlePublish()}
+            />
+
+            <ActionButton
+              label="Nouvelle recherche"
+              size="sm"
+              variant="secondary"
+              style={styles.resetSearchButton}
+              onPress={() =>
+                void (async () => {
+                  await newSearch();
+                  router.replace("/(tabs)" as any);
+                })()
+              }
             />
           </>
         ) : null}
@@ -943,6 +968,7 @@ const styles = StyleSheet.create({
   advancedToggle: { marginTop: 10, alignSelf: "flex-start" },
   advancedToggleText: { color: Colors.dark.primary, fontSize: 13, fontFamily: Fonts.sansSemiBold },
   button: { marginTop: 20 },
+  resetSearchButton: { marginTop: 10 },
   summaryCard: {
     borderRadius: 10,
     borderWidth: 0,

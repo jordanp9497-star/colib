@@ -2,8 +2,24 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "@/constants/theme";
+import { useUser } from "@/context/UserContext";
 
 export default function PublishScreen() {
+  const { isLoggedIn } = useUser();
+
+  if (!isLoggedIn) {
+    return (
+      <View style={styles.containerBlocked}>
+        <Ionicons name="lock-closed-outline" size={22} color={Colors.dark.textSecondary} />
+        <Text style={styles.title}>Connectez-vous pour publier</Text>
+        <Text style={styles.subtitle}>{"L'envoi de colis et la publication de trajets sont disponibles apres connexion."}</Text>
+        <TouchableOpacity style={styles.blockedCta} onPress={() => router.push("/(tabs)/profile" as any)}>
+          <Text style={styles.blockedCtaText}>Aller a la connexion</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {router.canGoBack() ? (
@@ -41,6 +57,14 @@ export default function PublishScreen() {
 }
 
 const styles = StyleSheet.create({
+  containerBlocked: {
+    flex: 1,
+    backgroundColor: Colors.dark.background,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.dark.background,
@@ -73,6 +97,19 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     fontSize: 14,
     fontFamily: Fonts.sans,
+    textAlign: "center",
+  },
+  blockedCta: {
+    marginTop: 6,
+    borderRadius: 10,
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  blockedCtaText: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
   },
   secondaryButton: {
     borderRadius: 12,

@@ -256,9 +256,22 @@ export default defineSchema({
   users: defineTable({
     visitorId: v.string(),
     name: v.string(),
+    givenName: v.optional(v.string()),
+    familyName: v.optional(v.string()),
     email: v.optional(v.string()),
     emailVerified: v.boolean(),
     phone: v.optional(v.string()),
+    addressLine1: v.optional(v.string()),
+    addressLine2: v.optional(v.string()),
+    city: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
+    country: v.optional(v.string()),
+    authProvider: v.optional(v.union(v.literal("local"), v.literal("google"), v.literal("apple"), v.literal("password"))),
+    authSubject: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
+    passwordSalt: v.optional(v.string()),
+    termsAcceptedAt: v.optional(v.number()),
+    termsVersionAccepted: v.optional(v.string()),
     profilePhotoId: v.optional(v.id("_storage")),
     idCardPhotoId: v.optional(v.id("_storage")),
     carteGrisePhotoId: v.optional(v.id("_storage")),
@@ -426,6 +439,17 @@ export default defineSchema({
     .index("by_email_code", ["email", "code"])
     .index("by_visitorId", ["visitorId"])
     .index("by_email", ["email"]),
+
+  passwordResetCodes: defineTable({
+    email: v.string(),
+    codeHash: v.string(),
+    expiresAt: v.number(),
+    used: v.boolean(),
+    attempts: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_email_created", ["email", "createdAt"]),
 
   reviews: defineTable({
     reviewerId: v.string(),

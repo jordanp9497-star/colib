@@ -29,9 +29,22 @@ import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
 import { ActionButton } from "@/components/ui/action-button";
 import { Colors, Fonts } from "@/constants/theme";
 import { isJordanAdminName } from "@/constants/admin";
+import { TERMS_CLAUSES, TERMS_LAST_UPDATED, TERMS_SUMMARY, TERMS_VERSION } from "@/packages/shared/legal";
 
 export default function ProfileScreen() {
-  const { userId, isLoggedIn, isLoading, register, user } = useUser();
+  const {
+    userId,
+    isLoggedIn,
+    isLoading,
+    registerWithPassword,
+    loginWithPassword,
+    requestPasswordResetCode,
+    resetPasswordWithCode,
+    loginWithGoogle,
+    loginWithApple,
+    logout,
+    user,
+  } = useUser();
 
   if (isLoading) {
     return (
@@ -42,7 +55,17 @@ export default function ProfileScreen() {
   }
 
   if (!isLoggedIn) {
-    return <RegistrationFlow register={register} />;
+    return (
+      <RegistrationFlow
+        registerWithPassword={registerWithPassword}
+        loginWithPassword={loginWithPassword}
+        requestPasswordResetCode={requestPasswordResetCode}
+        resetPasswordWithCode={resetPasswordWithCode}
+        loginWithGoogle={loginWithGoogle}
+        loginWithApple={loginWithApple}
+        logout={logout}
+      />
+    );
   }
 
   return <LoggedInProfile userId={userId} user={user!} />;
@@ -51,52 +74,603 @@ export default function ProfileScreen() {
 // ─── INSCRIPTION ────────────────────────────────────────
 
 function RegistrationFlow({
-  register,
+  registerWithPassword,
+  loginWithPassword,
+  requestPasswordResetCode,
+  resetPasswordWithCode,
+  loginWithGoogle,
+  loginWithApple,
+  logout,
 }: {
-  register: (name: string, phone?: string) => Promise<void>;
+  registerWithPassword: (
+    profile: {
+      givenName: string;
+      familyName: string;
+      phone: string;
+      addressLine1: string;
+      addressLine2?: string;
+      city: string;
+      postalCode: string;
+      country: string;
+      email: string;
+      password: string;
+    },
+    termsAccepted?: boolean
+  ) => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<void>;
+  requestPasswordResetCode: (email: string) => Promise<{ success: boolean; code?: string; error?: string }>;
+  resetPasswordWithCode: (email: string, code: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (termsAccepted?: boolean) => Promise<void>;
+  loginWithApple: (termsAccepted?: boolean) => Promise<void>;
+  logout: () => void;
 }) {
-  const [name, setName] = useState("");
+  type AuthStep = "welcome" | "register" | "registerSuccess" | "login" | "forgotPassword";
+
+  const [authStep, setAuthStep] = useState<AuthStep>("welcome");
+  const [givenName, setGivenName] = useState("");
+  const [familyName, setFamilyName] = useState("");
   const [phone, setPhone] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("France");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [recentlyCreatedVisitorId, setRecentlyCreatedVisitorId] = useState<string | null>(null);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetCodeRequested, setResetCodeRequested] = useState(false);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loginNotice) return;
+    const timeoutId = setTimeout(() => setLoginNotice(null), 4000);
+    return () => clearTimeout(timeoutId);
+  }, [loginNotice]);
+
+  const ensureTermsAccepted = () => {
+    if (!termsAccepted) {
+      Alert.alert(
+        "Acceptation obligatoire",
+        "Vous devez accepter les conditions d'utilisation pour creer un compte ou vous connecter."
+      );
+      return false;
+    }
+    return true;
+  };
 
   const handleNameSubmit = async () => {
-    if (!name.trim()) {
-      Alert.alert("Nom requis", "Veuillez entrer votre nom.");
+    if (
+      !givenName.trim() ||
+      !familyName.trim() ||
+      !phone.trim() ||
+      !addressLine1.trim() ||
+      !city.trim() ||
+      !postalCode.trim() ||
+      !country.trim() ||
+      !email.trim() ||
+      !password.trim()
+    ) {
+      Alert.alert("Champs requis", "Completez le formulaire, y compris email et mot de passe.");
       return;
     }
-    await register(name, phone || undefined);
+    if (password.length < 8) {
+      Alert.alert("Mot de passe", "Le mot de passe doit contenir au moins 8 caracteres.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Mot de passe", "La confirmation du mot de passe ne correspond pas.");
+      return;
+    }
+    if (!ensureTermsAccepted()) {
+      return;
+    }
+    setRegisterLoading(true);
+    try {
+      await registerWithPassword(
+        {
+          givenName,
+          familyName,
+          phone,
+          addressLine1,
+          addressLine2: addressLine2 || undefined,
+          city,
+          postalCode,
+          country,
+          email,
+          password,
+        },
+        true
+      );
+      const normalizedEmail = email.trim().toLowerCase();
+      setRecentlyCreatedVisitorId(normalizedEmail);
+      setLoginEmail(normalizedEmail);
+      setLoginPassword("");
+      logout();
+      setAuthStep("registerSuccess");
+    } catch (error) {
+      Alert.alert("Creation impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setRegisterLoading(false);
+    }
   };
+
+  const handleLocalLogin = async () => {
+    const targetEmail = loginEmail.trim().toLowerCase() || recentlyCreatedVisitorId;
+    if (!targetEmail || !loginPassword.trim()) {
+      Alert.alert("Connexion", "Entrez votre email et votre mot de passe.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      await loginWithPassword(targetEmail, loginPassword);
+    } catch (error) {
+      Alert.alert("Connexion impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!ensureTermsAccepted()) {
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      await loginWithGoogle(true);
+    } catch (error) {
+      Alert.alert("Connexion Google impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRequestResetCode = async () => {
+    const emailValue = resetEmail.trim().toLowerCase();
+    if (!emailValue.includes("@")) {
+      Alert.alert("Email invalide", "Entrez un email valide.");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const result = await requestPasswordResetCode(emailValue);
+      if (!result.success) {
+        Alert.alert("Demande impossible", result.error || "Reessayez.");
+        return;
+      }
+      setResetCodeRequested(true);
+      if (result.code) {
+        Alert.alert("Code de reinitialisation (BETA)", `Votre code est: ${result.code}`);
+      } else {
+        Alert.alert("Code envoye", "Un code de reinitialisation vient d'etre envoye.");
+      }
+    } catch (error) {
+      Alert.alert("Demande impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const emailValue = resetEmail.trim().toLowerCase();
+    if (!emailValue.includes("@")) {
+      Alert.alert("Email invalide", "Entrez un email valide.");
+      return;
+    }
+    if (resetCode.trim().length !== 6) {
+      Alert.alert("Code invalide", "Entrez le code a 6 chiffres.");
+      return;
+    }
+    if (resetNewPassword.length < 8) {
+      Alert.alert("Mot de passe", "Le mot de passe doit contenir au moins 8 caracteres.");
+      return;
+    }
+    if (resetNewPassword !== resetConfirmPassword) {
+      Alert.alert("Mot de passe", "La confirmation du mot de passe ne correspond pas.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const result = await resetPasswordWithCode(emailValue, resetCode.trim(), resetNewPassword);
+      if (!result.success) {
+        Alert.alert("Reinitialisation impossible", result.error || "Reessayez.");
+        return;
+      }
+      setLoginNotice("Mot de passe modifie. Vous pouvez maintenant vous connecter.");
+      setLoginEmail(emailValue);
+      setLoginPassword("");
+      setResetCode("");
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+      setResetCodeRequested(false);
+      setAuthStep("login");
+    } catch (error) {
+      Alert.alert("Reinitialisation impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (!ensureTermsAccepted()) {
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      await loginWithApple(true);
+    } catch (error) {
+      Alert.alert("Connexion Apple impossible", error instanceof Error ? error.message : "Reessayez.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={styles.authContainer}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.avatarPlaceholder}>
-        <Ionicons name="person" size={48} color={Colors.dark.textSecondary} />
-      </View>
-      <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
-      <Text style={styles.authText}>
-        Creez votre profil pour commencer a publier des trajets et envoyer des
-        colis. Vous pourrez ajouter votre email juste apres.
-      </Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Votre nom"
-        placeholderTextColor={Colors.dark.textSecondary}
-        value={name}
-        onChangeText={setName}
-        autoFocus
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Telephone (optionnel)"
-        placeholderTextColor={Colors.dark.textSecondary}
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-      />
-      <TouchableOpacity style={styles.primaryButton} onPress={handleNameSubmit}>
-        <Text style={styles.primaryButtonText}>Creer mon profil</Text>
-      </TouchableOpacity>
+    <KeyboardAvoidingView style={styles.authContainer} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView
+        style={styles.authScroll}
+        contentContainerStyle={styles.authScrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.avatarPlaceholder}>
+          <Ionicons name="person" size={48} color={Colors.dark.textSecondary} />
+        </View>
+        <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
+        <Text style={styles.authText}>Inscrivez-vous ou connectez-vous pour publier et reserver des trajets.</Text>
+
+        {authStep === "welcome" ? (
+          <View style={styles.authStepCard}>
+            <TouchableOpacity style={styles.entryButton} onPress={() => setAuthStep("register")} activeOpacity={0.9}>
+              <Text style={styles.entryButtonText}>{"S'enregistrer"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.entryGhostButton} onPress={() => setAuthStep("login")} activeOpacity={0.9}>
+              <Text style={styles.entryGhostButtonText}>Se connecter</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {authStep === "register" ? (
+          <View style={styles.registrationFormCard}>
+            <View style={styles.authStepHeader}>
+              <TouchableOpacity style={styles.backInlineButton} onPress={() => setAuthStep("welcome")}>
+                <Ionicons name="chevron-back" size={16} color={Colors.dark.textSecondary} />
+                <Text style={styles.backInlineButtonText}>Retour</Text>
+              </TouchableOpacity>
+              <Text style={styles.registrationFormTitle}>Etape 2 - Creer votre profil</Text>
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Prenom"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={givenName}
+              onChangeText={setGivenName}
+              autoFocus
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Nom"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={familyName}
+              onChangeText={setFamilyName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Telephone"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Numero et rue"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={addressLine1}
+              onChangeText={setAddressLine1}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Complement d'adresse (optionnel)"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={addressLine2}
+              onChangeText={setAddressLine2}
+            />
+            <View style={styles.authRow}>
+              <TextInput
+                style={[styles.input, styles.authHalfInput]}
+                placeholder="Ville"
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={city}
+                onChangeText={setCity}
+              />
+              <TextInput
+                style={[styles.input, styles.authHalfInput]}
+                placeholder="Code postal"
+                placeholderTextColor={Colors.dark.textSecondary}
+                value={postalCode}
+                onChangeText={setPostalCode}
+              />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Pays"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={country}
+              onChangeText={setCountry}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Mot de passe"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirmer le mot de passe"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                (!termsAccepted || authLoading || registerLoading) && styles.primaryButtonDisabled,
+              ]}
+              onPress={handleNameSubmit}
+              disabled={!termsAccepted || authLoading || registerLoading}
+            >
+              <Text style={styles.primaryButtonText}>{registerLoading ? "Creation..." : "Valider l'inscription"}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.termsCheckRow} onPress={() => setTermsAccepted((value) => !value)} activeOpacity={0.85}>
+              <Ionicons
+                name={termsAccepted ? "checkbox" : "square-outline"}
+                size={22}
+                color={termsAccepted ? Colors.dark.primary : Colors.dark.textSecondary}
+              />
+              <Text style={styles.termsCheckText}>
+                {"J'accepte les conditions d'utilisation et je reconnais que Colib est uniquement une plateforme de mise en relation."}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.termsToggleButton} onPress={() => setShowTerms((value) => !value)}>
+              <Text style={styles.termsToggleText}>{showTerms ? "Masquer les conditions" : "Lire les conditions d'utilisation"}</Text>
+            </TouchableOpacity>
+
+            {showTerms ? (
+              <View style={styles.termsCard}>
+                <Text style={styles.termsTitle}>{"Conditions d'utilisation"}</Text>
+                <Text style={styles.termsMeta}>Version: {TERMS_VERSION} - Derniere mise a jour: {TERMS_LAST_UPDATED}</Text>
+                <Text style={styles.termsSummary}>{TERMS_SUMMARY}</Text>
+                {TERMS_CLAUSES.map((clause) => (
+                  <View key={clause.title} style={styles.termsClause}>
+                    <Text style={styles.termsClauseTitle}>{clause.title}</Text>
+                    <Text style={styles.termsClauseBody}>{clause.body}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {authStep === "registerSuccess" ? (
+          <View style={styles.authStepCard}>
+            <Ionicons name="checkmark-circle" size={34} color={Colors.dark.success} />
+            <Text style={styles.successTitle}>Etape 3 - Profil cree</Text>
+            <Text style={styles.successText}>Votre profil a bien ete enregistre. Vous pouvez revenir a la connexion pour acceder a votre compte.</Text>
+            <TouchableOpacity style={styles.entryButton} onPress={() => setAuthStep("login")} activeOpacity={0.9}>
+              <Text style={styles.entryButtonText}>Retour a la connexion</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {authStep === "login" ? (
+          <View style={styles.socialLoginCard}>
+            <View style={styles.authStepHeader}>
+              <TouchableOpacity style={styles.backInlineButton} onPress={() => setAuthStep("welcome")}>
+                <Ionicons name="chevron-back" size={16} color={Colors.dark.textSecondary} />
+                <Text style={styles.backInlineButtonText}>Retour</Text>
+              </TouchableOpacity>
+              <Text style={styles.socialLoginTitle}>Se connecter</Text>
+            </View>
+
+            {recentlyCreatedVisitorId ? (
+              <Text style={styles.loginHintText}>Compte cree: {recentlyCreatedVisitorId}</Text>
+            ) : null}
+
+            {loginNotice ? (
+              <View style={styles.authNoticeCard}>
+                <Ionicons name="checkmark-circle" size={15} color={Colors.dark.success} />
+                <Text style={styles.authNoticeText}>{loginNotice}</Text>
+              </View>
+            ) : null}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={loginEmail}
+              onChangeText={setLoginEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Mot de passe"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={[styles.localLoginButton, authLoading && styles.secondaryButtonDisabled]}
+              onPress={handleLocalLogin}
+              disabled={authLoading}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="log-in-outline" size={18} color={Colors.dark.text} />
+              <Text style={styles.localLoginButtonText}>{authLoading ? "Connexion..." : "Se connecter"}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => {
+                setResetEmail(loginEmail);
+                setResetCode("");
+                setResetNewPassword("");
+                setResetConfirmPassword("");
+                setResetCodeRequested(false);
+                setLoginNotice(null);
+                setAuthStep("forgotPassword");
+              }}
+            >
+              <Text style={styles.linkButtonText}>Mot de passe oublie ?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.termsCheckRow} onPress={() => setTermsAccepted((value) => !value)} activeOpacity={0.85}>
+              <Ionicons
+                name={termsAccepted ? "checkbox" : "square-outline"}
+                size={20}
+                color={termsAccepted ? Colors.dark.primary : Colors.dark.textSecondary}
+              />
+              <Text style={styles.termsCheckText}>{"J'accepte les conditions d'utilisation."}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.termsToggleButton} onPress={() => setShowTerms((value) => !value)}>
+              <Text style={styles.termsToggleText}>{showTerms ? "Masquer les conditions" : "Lire les conditions"}</Text>
+            </TouchableOpacity>
+
+            {showTerms ? (
+              <View style={styles.termsCard}>
+                <Text style={styles.termsTitle}>{"Conditions d'utilisation"}</Text>
+                <Text style={styles.termsMeta}>Version: {TERMS_VERSION} - Derniere mise a jour: {TERMS_LAST_UPDATED}</Text>
+                <Text style={styles.termsSummary}>{TERMS_SUMMARY}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.googleButton, (authLoading || !termsAccepted) && styles.secondaryButtonDisabled]}
+              onPress={handleGoogleLogin}
+              disabled={authLoading || !termsAccepted}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="logo-google" size={18} color="#DB4437" />
+              <Text style={styles.googleButtonText}>{authLoading ? "Connexion..." : "Se connecter avec Google"}</Text>
+            </TouchableOpacity>
+            {Platform.OS === "ios" ? (
+              <TouchableOpacity
+                style={[styles.appleButton, (authLoading || !termsAccepted) && styles.secondaryButtonDisabled]}
+                onPress={handleAppleLogin}
+                disabled={authLoading || !termsAccepted}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+                <Text style={styles.appleButtonText}>{authLoading ? "Connexion..." : "Se connecter avec Apple"}</Text>
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.testLoginHint}>Google: iOS/Android/Web. Apple: uniquement iOS.</Text>
+          </View>
+        ) : null}
+
+        {authStep === "forgotPassword" ? (
+          <View style={styles.socialLoginCard}>
+            <View style={styles.authStepHeader}>
+              <TouchableOpacity style={styles.backInlineButton} onPress={() => setAuthStep("login")}>
+                <Ionicons name="chevron-back" size={16} color={Colors.dark.textSecondary} />
+                <Text style={styles.backInlineButtonText}>Retour</Text>
+              </TouchableOpacity>
+              <Text style={styles.socialLoginTitle}>Reinitialiser le mot de passe</Text>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            {!resetCodeRequested ? (
+              <TouchableOpacity
+                style={[styles.localLoginButton, resetLoading && styles.secondaryButtonDisabled]}
+                onPress={handleRequestResetCode}
+                disabled={resetLoading}
+              >
+                <Ionicons name="mail-open-outline" size={18} color={Colors.dark.text} />
+                <Text style={styles.localLoginButtonText}>{resetLoading ? "Envoi..." : "Recevoir un code"}</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Code a 6 chiffres"
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={resetCode}
+                  onChangeText={(value) => setResetCode(value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nouveau mot de passe"
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={resetNewPassword}
+                  onChangeText={setResetNewPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirmer le nouveau mot de passe"
+                  placeholderTextColor={Colors.dark.textSecondary}
+                  value={resetConfirmPassword}
+                  onChangeText={setResetConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={[styles.localLoginButton, resetLoading && styles.secondaryButtonDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={resetLoading}
+                >
+                  <Ionicons name="key-outline" size={18} color={Colors.dark.text} />
+                  <Text style={styles.localLoginButtonText}>{resetLoading ? "Mise a jour..." : "Valider"}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        ) : null}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -119,6 +693,7 @@ function LoggedInProfile({
   const generateUploadUrl = useMutation(api.users.generateUploadUrl);
   const saveProfilePhoto = useMutation(api.users.saveProfilePhoto);
   const saveIdentityDocs = useMutation(api.users.saveIdentityDocuments);
+  const updateName = useMutation(api.users.updateName);
   const submitCarrierDocuments = useMutation(api.compliance.submitCarrierDocuments);
   const removeTrip = useMutation(api.trips.remove);
   const removeParcel = useMutation(api.parcels.remove);
@@ -130,6 +705,9 @@ function LoggedInProfile({
   const [carteGriseExpiryInput, setCarteGriseExpiryInput] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
   const [submittingCompliance, setSubmittingCompliance] = useState(false);
+  const [editingPseudo, setEditingPseudo] = useState(false);
+  const [pseudoInput, setPseudoInput] = useState(user.name);
+  const [savingPseudo, setSavingPseudo] = useState(false);
 
   // Email verification (si pas encore fait)
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -158,6 +736,9 @@ function LoggedInProfile({
   const completionChecks = [
     Boolean(user.name.trim()),
     Boolean(user.phone?.trim()),
+    Boolean(user.addressLine1?.trim()),
+    Boolean(user.city?.trim()),
+    Boolean(user.postalCode?.trim()),
     Boolean(user.emailVerified),
     Boolean(user.profilePhotoUrl),
     Boolean(user.identityVerified === "verified"),
@@ -404,6 +985,29 @@ function LoggedInProfile({
     ]);
   };
 
+  const handleSavePseudo = async () => {
+    const nextPseudo = pseudoInput.trim();
+    if (!nextPseudo) {
+      setInlineFeedback({ type: "error", message: "Le pseudo ne peut pas etre vide." });
+      return;
+    }
+    if (nextPseudo.length < 3) {
+      setInlineFeedback({ type: "error", message: "Le pseudo doit contenir au moins 3 caracteres." });
+      return;
+    }
+
+    setSavingPseudo(true);
+    try {
+      await updateName({ visitorId: userId, name: nextPseudo });
+      setInlineFeedback({ type: "success", message: "Pseudo mis a jour." });
+      setEditingPseudo(false);
+    } catch {
+      setInlineFeedback({ type: "error", message: "Impossible de mettre a jour le pseudo." });
+    } finally {
+      setSavingPseudo(false);
+    }
+  };
+
   const handleEditTrip = (tripId: string) => {
     router.push({ pathname: "/(tabs)/offer", params: { tripId } });
   };
@@ -494,7 +1098,45 @@ function LoggedInProfile({
             <Ionicons name="camera" size={14} color={Colors.dark.text} />
           </View>
         </TouchableOpacity>
-        <Text style={styles.userName}>{user.name}</Text>
+        {editingPseudo ? (
+          <View style={styles.pseudoEditorWrap}>
+            <TextInput
+              style={styles.pseudoInput}
+              value={pseudoInput}
+              onChangeText={setPseudoInput}
+              placeholder="Votre pseudo"
+              placeholderTextColor={Colors.dark.textSecondary}
+              autoCapitalize="none"
+              maxLength={40}
+            />
+            <View style={styles.pseudoActionRow}>
+              <TouchableOpacity
+                style={[styles.pseudoSaveButton, savingPseudo && styles.secondaryButtonDisabled]}
+                onPress={handleSavePseudo}
+                disabled={savingPseudo}
+              >
+                <Text style={styles.pseudoSaveText}>{savingPseudo ? "Enregistrement..." : "Valider"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.pseudoCancelButton}
+                onPress={() => {
+                  setPseudoInput(user.name);
+                  setEditingPseudo(false);
+                }}
+              >
+                <Text style={styles.pseudoCancelText}>Annuler</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.userNameRow}>
+            <Text style={styles.userName}>{user.name}</Text>
+            <TouchableOpacity style={styles.editPseudoButton} onPress={() => setEditingPseudo(true)}>
+              <Ionicons name="create-outline" size={14} color={Colors.dark.text} />
+              <Text style={styles.editPseudoText}>Modifier le pseudo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={styles.headerBadges}>
           <StarRating
             rating={user.averageRating}
@@ -897,12 +1539,18 @@ const styles = StyleSheet.create({
   // Auth / Registration
   authContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
+    paddingHorizontal: 20,
     backgroundColor: Colors.dark.background,
   },
+  authScroll: {
+    flex: 1,
+    width: "100%",
+  },
+  authScrollContent: {
+    paddingVertical: 24,
+  },
   avatarPlaceholder: {
+    alignSelf: "center",
     width: 96,
     height: 96,
     borderRadius: 48,
@@ -916,6 +1564,7 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     marginBottom: 8,
     fontFamily: Fonts.displaySemiBold,
+    textAlign: "center",
   },
   authText: {
     fontSize: 14,
@@ -939,6 +1588,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: Fonts.sans,
   },
+  authRow: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 10,
+  },
+  authHalfInput: {
+    flex: 1,
+  },
   codeLabel: {
     fontSize: 13,
     color: Colors.dark.textSecondary,
@@ -956,10 +1613,229 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+  primaryButtonDisabled: {
+    opacity: 0.55,
+  },
   primaryButtonText: {
     color: Colors.dark.text,
     fontSize: 16,
     fontFamily: Fonts.sansSemiBold,
+  },
+  entryButton: {
+    width: "100%",
+    borderRadius: 12,
+    minHeight: 48,
+    backgroundColor: Colors.dark.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  entryButtonText: {
+    color: Colors.dark.text,
+    fontSize: 15,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  entryGhostButton: {
+    width: "100%",
+    borderRadius: 12,
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  entryGhostButtonText: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  authStepCard: {
+    width: "100%",
+    borderWidth: 0,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: Colors.dark.surface,
+    gap: 10,
+  },
+  authStepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  backInlineButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+  },
+  backInlineButtonText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  registrationFormCard: {
+    width: "100%",
+    borderWidth: 0,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+    backgroundColor: Colors.dark.surface,
+  },
+  registrationFormTitle: {
+    fontSize: 14,
+    color: Colors.dark.text,
+    marginBottom: 10,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  testLoginCard: {
+    marginTop: 18,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: Colors.dark.surface,
+  },
+  testLoginTitle: {
+    fontSize: 14,
+    color: Colors.dark.text,
+    marginBottom: 8,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  secondaryButton: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 2,
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  secondaryButtonText: {
+    color: Colors.dark.text,
+    fontSize: 15,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  testLoginHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
+  },
+  socialLoginCard: {
+    marginTop: 6,
+    width: "100%",
+    borderWidth: 0,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: Colors.dark.surface,
+    gap: 10,
+  },
+  socialLoginTitle: {
+    fontSize: 14,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  localLoginButton: {
+    borderRadius: 12,
+    minHeight: 44,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: Colors.dark.primary,
+    borderWidth: 1,
+    borderColor: Colors.dark.primary,
+  },
+  localLoginButtonText: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  loginHintText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+    marginBottom: 2,
+  },
+  authNoticeCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.success,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  authNoticeText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+    flex: 1,
+  },
+  linkButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 2,
+  },
+  linkButtonText: {
+    color: Colors.dark.primary,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  googleButton: {
+    borderRadius: 12,
+    minHeight: 46,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  googleButtonText: {
+    color: "#202124",
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  appleButton: {
+    borderRadius: 12,
+    minHeight: 46,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#101010",
+    borderWidth: 1,
+    borderColor: "#1F1F1F",
+  },
+  appleButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  successTitle: {
+    color: Colors.dark.text,
+    fontSize: 16,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  successText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: Fonts.sans,
+    marginBottom: 8,
   },
   smallPrimaryButton: {
     marginBottom: 8,
@@ -978,6 +1854,72 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.sans,
     textAlign: "center",
+  },
+  termsCheckRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  termsCheckText: {
+    flex: 1,
+    color: Colors.dark.text,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: Fonts.sans,
+  },
+  termsToggleButton: {
+    alignSelf: "flex-start",
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  termsToggleText: {
+    color: Colors.dark.primary,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  termsCard: {
+    width: "100%",
+    backgroundColor: Colors.dark.surface,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    marginBottom: 12,
+  },
+  termsTitle: {
+    color: Colors.dark.text,
+    fontSize: 15,
+    fontFamily: Fonts.sansSemiBold,
+    marginBottom: 4,
+  },
+  termsMeta: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sans,
+    marginBottom: 8,
+  },
+  termsSummary: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: Fonts.sans,
+    marginBottom: 10,
+  },
+  termsClause: {
+    marginBottom: 9,
+  },
+  termsClauseTitle: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+    marginBottom: 2,
+  },
+  termsClauseBody: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
   outlineButton: {
     flexDirection: "row",
@@ -1096,6 +2038,69 @@ const styles = StyleSheet.create({
     color: Colors.dark.text,
     marginTop: 10,
     fontFamily: Fonts.displaySemiBold,
+  },
+  userNameRow: {
+    marginTop: 10,
+    alignItems: "center",
+    gap: 6,
+  },
+  editPseudoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  editPseudoText: {
+    color: Colors.dark.text,
+    fontSize: 11,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  pseudoEditorWrap: {
+    width: "86%",
+    marginTop: 10,
+    gap: 6,
+  },
+  pseudoInput: {
+    width: "100%",
+    borderRadius: 10,
+    backgroundColor: Colors.dark.surfaceMuted,
+    color: Colors.dark.text,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    fontFamily: Fonts.sans,
+  },
+  pseudoActionRow: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+  },
+  pseudoSaveButton: {
+    borderRadius: 9,
+    backgroundColor: Colors.dark.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pseudoSaveText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  pseudoCancelButton: {
+    borderRadius: 9,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pseudoCancelText: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   headerBadges: {
     flexDirection: "row",

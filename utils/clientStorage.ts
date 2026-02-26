@@ -38,6 +38,23 @@ export async function setPersistedItem(key: string, value: string): Promise<void
   }
 }
 
+export async function removePersistedItem(key: string): Promise<void> {
+  if (SecureStore) {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {
+      return;
+    }
+    return;
+  }
+
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    return;
+  }
+}
+
 export function getSessionItem(key: string): string | null {
   if (Platform.OS !== "web") {
     return null;
@@ -57,6 +74,18 @@ export function setSessionItem(key: string, value: string): void {
 
   try {
     sessionStorage.setItem(key, value);
+  } catch {
+    return;
+  }
+}
+
+export function removeSessionItem(key: string): void {
+  if (Platform.OS !== "web") {
+    return;
+  }
+
+  try {
+    sessionStorage.removeItem(key);
   } catch {
     return;
   }
