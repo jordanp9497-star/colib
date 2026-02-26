@@ -122,9 +122,9 @@ export default function TripsScreen() {
       <View style={styles.header}>
         <View style={styles.brandRow}>
           <View style={styles.logoWrap}>
-            <ColibLogoMark size={36} color="#EAF0F6" backgroundColor="#161D24" />
+            <ColibLogoMark size={44} color="#EAF0F6" backgroundColor="#161D24" />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.brandTextWrap}>
             <Text style={styles.title}>Colib</Text>
             <Text style={styles.tagline}>transportez où vous voulez, quand vous voulez.</Text>
           </View>
@@ -210,28 +210,34 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 44,
-    paddingBottom: 8,
-    backgroundColor: Colors.dark.surface,
+    paddingTop: 66,
+    paddingBottom: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
   brandRow: {
-    flexDirection: "row",
+    width: "100%",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    gap: 10,
+  },
+  brandTextWrap: {
+    alignItems: "center",
   },
   logoWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: Colors.dark.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 24,
+    lineHeight: 30,
     color: Colors.dark.text,
     fontFamily: Fonts.displaySemiBold,
+    textAlign: "center",
   },
   tagline: {
     marginTop: 2,
@@ -240,13 +246,14 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     fontFamily: Fonts.sans,
     textTransform: "none",
+    textAlign: "center",
   },
   searchContainerWrap: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 2,
     paddingBottom: 24,
   },
   searchContainer: {

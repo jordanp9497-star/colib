@@ -15,33 +15,33 @@ const ALICE = {
 };
 
 const VITRY_ADDRESS = {
-  label: "Vitry-sur-Seine, France",
-  city: "Vitry-sur-Seine",
-  postalCode: "94400",
+  label: "11 Rue Oberkampf, 75011 Paris, France",
+  city: "Paris",
+  postalCode: "75011",
   countryCode: "FR",
-  placeId: "seed-vitry-sur-seine",
-  lat: 48.787,
-  lng: 2.403,
+  placeId: "seed-paris-oberkampf",
+  lat: 48.8646,
+  lng: 2.3792,
 };
 
 const MARNE_ADDRESS = {
-  label: "Marne-la-Vallee, France",
-  city: "Marne-la-Vallee",
-  postalCode: "77700",
+  label: "23 Avenue Edouard Vaillant, 92100 Boulogne-Billancourt, France",
+  city: "Boulogne-Billancourt",
+  postalCode: "92100",
   countryCode: "FR",
-  placeId: "seed-marne-la-vallee",
-  lat: 48.856,
-  lng: 2.783,
+  placeId: "seed-boulogne-vaillant",
+  lat: 48.8324,
+  lng: 2.2399,
 };
 
 const LEVALLOIS_ADDRESS = {
-  label: "Levallois-Perret, France",
-  city: "Levallois-Perret",
-  postalCode: "92300",
+  label: "8 Rue du Capitaine Ferber, 92130 Issy-les-Moulineaux, France",
+  city: "Issy-les-Moulineaux",
+  postalCode: "92130",
   countryCode: "FR",
-  placeId: "seed-levallois-perret",
-  lat: 48.893,
-  lng: 2.288,
+  placeId: "seed-issy-ferber",
+  lat: 48.8192,
+  lng: 2.268,
 };
 
 function buildTomorrowWindow() {
@@ -118,8 +118,8 @@ export const bootstrapTestAccounts = mutation({
         originAddress: VITRY_ADDRESS,
         destinationAddress: MARNE_ADDRESS,
         routePolyline: undefined,
-        routeDistanceKm: 34,
-        routeDurationMinutes: 48,
+        routeDistanceKm: 14,
+        routeDurationMinutes: 36,
         date: new Date(tripWindow.startTs).toISOString(),
         windowStartTs: tripWindow.startTs,
         windowEndTs: tripWindow.endTs,
@@ -128,7 +128,7 @@ export const bootstrapTestAccounts = mutation({
         maxVolumeDm3: 120,
         price: 24,
         maxDetourMinutes: 25,
-        description: "Trajet de test John Doe",
+        description: "Trajet factice publie par John Doe autour de Paris",
         phone: undefined,
         status: "published",
         publishedAt: now,
@@ -166,7 +166,7 @@ export const bootstrapTestAccounts = mutation({
         size: "petit",
         weight: 2,
         volumeDm3: 8,
-        description: "Colis de test vers Levallois-Perret",
+        description: "Colis factice envoye par Alice Doe autour de Paris",
         fragile: false,
         urgencyLevel: "normal",
         insuranceValue: undefined,

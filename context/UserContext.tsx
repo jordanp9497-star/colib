@@ -148,11 +148,25 @@ const UserContext = createContext<UserContextType>({
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [visitorId, setVisitorId] = useState<string>("");
   const [idReady, setIdReady] = useState(false);
+
+  const googleExpoClientId = process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID;
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const missingGoogleClientIdFallback = "missing-google-client-id";
+
+  const hasGoogleClientForPlatform = Platform.select({
+    ios: Boolean(googleIosClientId || googleExpoClientId || googleWebClientId),
+    android: Boolean(googleAndroidClientId || googleExpoClientId || googleWebClientId),
+    web: Boolean(googleWebClientId || googleExpoClientId),
+    default: Boolean(googleExpoClientId || googleWebClientId),
+  });
+
   const [googleRequest, , promptGoogleAsync] = Google.useAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    clientId: googleExpoClientId || googleWebClientId || missingGoogleClientIdFallback,
+    iosClientId: googleIosClientId || missingGoogleClientIdFallback,
+    androidClientId: googleAndroidClientId || missingGoogleClientIdFallback,
+    webClientId: googleWebClientId || missingGoogleClientIdFallback,
     scopes: ["openid", "profile", "email"],
   });
 
@@ -320,6 +334,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (!termsAccepted) {
         throw new Error("Conditions non acceptees");
       }
+      if (!hasGoogleClientForPlatform) {
+        throw new Error("Configuration Google OAuth manquante");
+      }
       if (!googleRequest) {
         throw new Error("Configuration Google OAuth manquante");
       }
@@ -377,7 +394,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
       await persistVisitorId(visitorIdFromGoogle);
     },
-    [createOrUpdate, googleRequest, persistVisitorId, promptGoogleAsync]
+    [createOrUpdate, googleRequest, hasGoogleClientForPlatform, persistVisitorId, promptGoogleAsync]
   );
 
   const loginWithApple = useCallback(

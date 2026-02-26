@@ -247,19 +247,23 @@ export default function OfferScreen() {
         {step === 1 ? (
           <>
             <Text style={styles.stepTitle}>Itineraire</Text>
-            <AddressAutocompleteInput
-              label="Adresse depart"
-              placeholder="Saisissez puis choisissez"
-              value={originAddress}
-              onChange={setOriginAddress}
-              enableCurrentLocation
-            />
-            <AddressAutocompleteInput
-              label="Adresse arrivee"
-              placeholder="Saisissez puis choisissez"
-              value={destinationAddress}
-              onChange={setDestinationAddress}
-            />
+            <View style={styles.originAutocompleteLayer}>
+              <AddressAutocompleteInput
+                label="Adresse depart"
+                placeholder="Saisissez puis choisissez"
+                value={originAddress}
+                onChange={setOriginAddress}
+                enableCurrentLocation
+              />
+            </View>
+            <View style={styles.destinationAutocompleteLayer}>
+              <AddressAutocompleteInput
+                label="Adresse arrivee"
+                placeholder="Saisissez puis choisissez"
+                value={destinationAddress}
+                onChange={setDestinationAddress}
+              />
+            </View>
           </>
         ) : null}
 
@@ -474,6 +478,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts.sans,
     marginTop: 2,
+  },
+  originAutocompleteLayer: {
+    zIndex: 40,
+    elevation: 40,
+  },
+  destinationAutocompleteLayer: {
+    zIndex: 30,
+    elevation: 30,
   },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.dark.background },
   title: { fontSize: 16, color: Colors.dark.text, textAlign: "center", paddingHorizontal: 24, fontFamily: Fonts.displaySemiBold },
