@@ -1,28 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import type { CrossPlatformMapProps } from "./CrossPlatformMap.types";
 
 export function CrossPlatformMap({ pins, paths = [], height = 260, onPinPress, selectedPinId }: CrossPlatformMapProps) {
-  let MapView: any;
-  let Marker: any;
-  let Polyline: any;
-
-  try {
-    const mapsModule = require("react-native-maps");
-    MapView = mapsModule.default;
-    Marker = mapsModule.Marker;
-    Polyline = mapsModule.Polyline;
-  } catch {
-    return (
-      <View style={[styles.empty, { height }]}> 
-        <Text style={styles.title}>Carte native indisponible</Text>
-        <Text style={styles.text}>
-          Redemarrez Expo apres installation, ou utilisez un dev build si necessaire.
-        </Text>
-      </View>
-    );
-  }
-
   if (pins.length === 0) {
     return <View style={[styles.empty, { height }]} />;
   }

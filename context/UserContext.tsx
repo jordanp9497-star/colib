@@ -83,7 +83,7 @@ interface UserRecord {
   identityVerified: "none" | "pending" | "verified" | "rejected";
   averageRating?: number;
   totalReviews?: number;
-  createdAt: string;
+  createdAt: number | string;
 }
 
 interface UserContextType {

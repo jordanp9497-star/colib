@@ -87,7 +87,7 @@ export const bootstrapTestAccounts = mutation({
         name,
         emailVerified: false,
         identityVerified: "none",
-        createdAt: new Date(now).toISOString(),
+        createdAt: now,
         termsAcceptedAt: now,
         termsVersionAccepted: TERMS_VERSION,
       });

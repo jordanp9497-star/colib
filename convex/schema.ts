@@ -283,7 +283,7 @@ export default defineSchema({
     ),
     averageRating: v.optional(v.number()),
     totalReviews: v.optional(v.number()),
-    createdAt: v.string(),
+    createdAt: v.union(v.number(), v.string()),
   })
     .index("by_visitorId", ["visitorId"])
     .index("by_email", ["email"]),
@@ -458,7 +458,7 @@ export default defineSchema({
     parcelId: v.optional(v.id("parcels")),
     rating: v.number(),
     comment: v.optional(v.string()),
-    createdAt: v.string(),
+    createdAt: v.union(v.number(), v.string()),
   })
     .index("by_reviewee", ["revieweeId"])
     .index("by_reviewer_trip", ["reviewerId", "tripId"]),

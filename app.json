@@ -17,8 +17,6 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Colib peut suivre votre trajet en arriere-plan pour detecter des opportunites colis.",
         "LSApplicationQueriesSchemes": [
           "waze",
-          "google.navigation",
-          "waze",
           "google.navigation"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -41,8 +39,7 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {

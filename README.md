@@ -124,6 +124,18 @@ EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=...
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
 ```
 
+## Secrets hygiene (important)
+
+- Never commit real keys in `.env.example`.
+- Keep real values only in `.env.local` (ignored by git).
+- Before push, run:
+
+```bash
+npm run secrets:scan
+```
+
+- If a key was committed in the past, rotate/revoke it in the provider console.
+
 ### Google Cloud Console (activate Google auth)
 
 1. Open Google Cloud Console and select/create a project.

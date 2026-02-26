@@ -29,6 +29,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? "dark"];
   const [showStartupScreen, setShowStartupScreen] = useState(true);
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -49,13 +50,15 @@ export default function RootLayout() {
 
   if (!convex) {
     return (
-      <View style={setupStyles.container}>
-        <Text style={setupStyles.title}>Configuration requise</Text>
-        <Text style={setupStyles.text}>
+      <View style={[setupStyles.container, { backgroundColor: palette.background }]}>
+        <Text style={[setupStyles.title, { color: palette.text }]}>Configuration requise</Text>
+        <Text style={[setupStyles.text, { color: palette.textSecondary }]}
+        >
           EXPO_PUBLIC_CONVEX_URL nest pas defini.
         </Text>
-        <Text style={setupStyles.code}>npx convex dev</Text>
-        <Text style={setupStyles.text}>
+        <Text style={[setupStyles.code, { backgroundColor: palette.surfaceMuted, color: palette.text }]}>npx convex dev</Text>
+        <Text style={[setupStyles.text, { color: palette.textSecondary }]}
+        >
           Cette commande creera le fichier .env.local avec URL Convex.
         </Text>
       </View>
@@ -64,11 +67,11 @@ export default function RootLayout() {
 
   if (showStartupScreen) {
     return (
-      <View style={startupStyles.container}>
-        <View style={startupStyles.logoWrap}>
+      <View style={[startupStyles.container, { backgroundColor: palette.background }]}>
+        <View style={[startupStyles.logoWrap, { backgroundColor: palette.surface }]}>
           <ColibLogoMark size={86} color="#EAF0F6" backgroundColor="#1D2630" />
         </View>
-        <Text style={startupStyles.subtitle}>
+        <Text style={[startupStyles.subtitle, { color: palette.text }]}>
           Colib, transportez{"\n"}
           où vous voulez,{"\n"}
           quand vous voulez.
@@ -81,12 +84,12 @@ export default function RootLayout() {
     ...(colorScheme === "dark" ? DarkTheme : DefaultTheme),
     colors: {
       ...(colorScheme === "dark" ? DarkTheme.colors : DefaultTheme.colors),
-      background: Colors.dark.background,
-      card: Colors.dark.card,
-      text: Colors.dark.text,
-      border: Colors.dark.border,
-      primary: Colors.dark.primary,
-      notification: Colors.dark.error,
+      background: palette.background,
+      card: palette.card,
+      text: palette.text,
+      border: palette.border,
+      primary: palette.primary,
+      notification: palette.error,
     },
   };
 

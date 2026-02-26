@@ -45,6 +45,7 @@ const STATUS_LABELS: Record<string, string> = {
 const PAYMENT_LABELS: Record<string, string> = {
   pending: "En attente",
   held: "Bloque",
+  release_pending: "Liberation en cours",
   released: "Libere",
   failed: "Echoue",
 };

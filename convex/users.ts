@@ -244,7 +244,7 @@ export const createOrUpdate = mutation({
       phone: normalizedPhone,
       emailVerified: args.emailVerified ?? false,
       identityVerified: "none",
-      createdAt: new Date().toISOString(),
+      createdAt: now,
       termsAcceptedAt: now,
       termsVersionAccepted: args.termsVersion || TERMS_VERSION,
     });
@@ -369,7 +369,7 @@ export const registerWithPassword = mutation({
       phone: normalizedPhone,
       emailVerified: false,
       identityVerified: "none",
-      createdAt: new Date(now).toISOString(),
+      createdAt: now,
       termsAcceptedAt: now,
       termsVersionAccepted: args.termsVersion || TERMS_VERSION,
       passwordHash,

@@ -24,6 +24,8 @@ import TripCard from "@/components/TripCard";
 import ParcelCard from "@/components/ParcelCard";
 import StarRating from "@/components/profile/StarRating";
 import VerificationBadge from "@/components/profile/VerificationBadge";
+import { ProfileHistorySection } from "@/components/profile/ProfileHistorySection";
+import { ProfileWalletSection } from "@/components/profile/ProfileWalletSection";
 import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
 import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
 import { ActionButton } from "@/components/ui/action-button";
@@ -686,6 +688,10 @@ function LoggedInProfile({
 }) {
   const myTrips = useQuery(api.trips.getByUser, { userId });
   const myParcels = useQuery(api.parcels.getByUser, { userId });
+  const myShipments = useQuery(api.shipments.listForUser, {
+    requesterVisitorId: userId,
+    limit: 120,
+  });
   const reviews = useQuery(api.reviews.getForUser, { revieweeId: userId });
   const compliance = useQuery(api.compliance.getCarrierCompliance, { carrierVisitorId: userId });
   const { logout } = useUser();
@@ -718,6 +724,8 @@ function LoggedInProfile({
   const [openSections, setOpenSections] = useState({
     identity: true,
     verification: true,
+    history: true,
+    wallet: true,
     trips: false,
     parcels: false,
   });
@@ -732,7 +740,7 @@ function LoggedInProfile({
   const requestCode = useMutation(api.emailVerification.requestCode);
   const verifyCode = useMutation(api.emailVerification.verifyCode);
 
-  const isListLoading = myTrips === undefined || myParcels === undefined;
+  const isListLoading = myTrips === undefined || myParcels === undefined || myShipments === undefined;
   const completionChecks = [
     Boolean(user.name.trim()),
     Boolean(user.phone?.trim()),
@@ -744,6 +752,41 @@ function LoggedInProfile({
     Boolean(user.identityVerified === "verified"),
   ];
   const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+
+  const shipmentRows = (myShipments ?? []).map((shipment) => {
+    const isCarrier = shipment.carrierVisitorId === userId;
+    const role: "transporteur" | "expediteur" = isCarrier ? "transporteur" : "expediteur";
+    return {
+      id: String(shipment._id),
+      role,
+      status: shipment.status,
+      paymentStatus: shipment.paymentStatus,
+      amount: shipment.paymentAmount,
+      currency: shipment.paymentCurrency,
+      updatedAt: shipment.updatedAt,
+      deliveredAt: shipment.deliveredAt,
+    };
+  });
+
+  const completedHistory = shipmentRows.filter((entry) => entry.status === "delivered");
+  const shippedAsCarrier = completedHistory.filter((entry) => entry.role === "transporteur").length;
+  const shippedAsSender = completedHistory.filter((entry) => entry.role === "expediteur").length;
+
+  const walletReleased = shipmentRows
+    .filter((entry) => entry.role === "transporteur" && entry.paymentStatus === "released")
+    .reduce((sum, entry) => sum + entry.amount, 0);
+  const walletPending = shipmentRows
+    .filter(
+      (entry) =>
+        entry.role === "transporteur" && (entry.paymentStatus === "held" || entry.paymentStatus === "release_pending")
+    )
+    .reduce((sum, entry) => sum + entry.amount, 0);
+  const walletSpent = shipmentRows
+    .filter((entry) => entry.role === "expediteur" && entry.paymentStatus !== "failed")
+    .reduce((sum, entry) => sum + entry.amount, 0);
+  const walletCompletedPayouts = shipmentRows.filter(
+    (entry) => entry.role === "transporteur" && entry.paymentStatus === "released"
+  ).length;
 
   useEffect(() => {
     let mounted = true;
@@ -1412,6 +1455,24 @@ function LoggedInProfile({
           </View>
         ) : (
           <>
+            <ProfileHistorySection
+              open={openSections.history}
+              onToggle={() => toggleSection("history")}
+              shippedAsCarrier={shippedAsCarrier}
+              shippedAsSender={shippedAsSender}
+              completedHistory={completedHistory}
+            />
+
+            <ProfileWalletSection
+              open={openSections.wallet}
+              onToggle={() => toggleSection("wallet")}
+              walletReleased={walletReleased}
+              walletPending={walletPending}
+              walletSpent={walletSpent}
+              walletCompletedPayouts={walletCompletedPayouts}
+              currency="EUR"
+            />
+
             <View style={styles.foldSection}>
               <TouchableOpacity style={styles.foldHeader} onPress={() => toggleSection("trips")} activeOpacity={0.85}>
                 <Text style={styles.foldTitle}>Trajets</Text>

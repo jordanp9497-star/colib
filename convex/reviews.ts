@@ -31,7 +31,7 @@ export const create = mutation({
 
     await ctx.db.insert("reviews", {
       ...args,
-      createdAt: new Date().toISOString(),
+      createdAt: Date.now(),
     });
 
     // Recalculer la note moyenne
