@@ -50,6 +50,30 @@ async function computeMatchesForSession(
   return ranked;
 }
 
+async function patchUserRealtimeState(
+  ctx: { db: any },
+  userId: string,
+  payload: { isOnline?: boolean; location?: { lat: number; lng: number } }
+) {
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_visitorId", (q: any) => q.eq("visitorId", userId))
+    .first();
+  if (!user) return;
+
+  await ctx.db.patch(user._id, {
+    isOnline: payload.isOnline ?? user.isOnline ?? false,
+    lastActiveAt: Date.now(),
+    lastKnownLocation: payload.location
+      ? {
+          lat: payload.location.lat,
+          lng: payload.location.lng,
+          updatedAt: Date.now(),
+        }
+      : user.lastKnownLocation,
+  });
+}
+
 export const getActiveByUser = query({
   args: { userId: v.string() },
   handler: async (ctx, args) => {
@@ -112,6 +136,8 @@ export const start = mutation({
       updatedAt: now,
     });
 
+    await patchUserRealtimeState(ctx, args.userId, { isOnline: true });
+
     return { tripSessionId };
   },
 });
@@ -144,6 +170,11 @@ export const pushLocation = mutation({
       matchesCountCache: newCount,
       lastNotifiedAt: shouldNotify ? now : session.lastNotifiedAt,
       updatedAt: now,
+    });
+
+    await patchUserRealtimeState(ctx, args.userId, {
+      isOnline: true,
+      location: { lat: args.location.lat, lng: args.location.lng },
     });
 
     if (shouldNotify) {
@@ -230,6 +261,8 @@ export const stop = mutation({
       endedAt: now,
       updatedAt: now,
     });
+
+    await patchUserRealtimeState(ctx, args.userId, { isOnline: false });
 
     return { success: true };
   },

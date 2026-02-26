@@ -23,6 +23,7 @@ const tripStatus = v.union(
 );
 
 const parcelStatus = v.union(
+  v.literal("open"),
   v.literal("draft"),
   v.literal("published"),
   v.literal("matched"),
@@ -141,6 +142,8 @@ export default defineSchema({
     preferredWindowEndTs: v.number(),
     publishedAt: v.optional(v.number()),
     matchedTripId: v.optional(v.id("trips")),
+    matchedDriverId: v.optional(v.string()),
+    matchedAt: v.optional(v.number()),
     pricingEstimate: v.optional(pricingBreakdown),
     updatedAt: v.number(),
     createdAt: v.number(),
@@ -187,11 +190,14 @@ export default defineSchema({
       v.literal("reservation_accepted"),
       v.literal("payment_required"),
       v.literal("delivery_qr_sent"),
-      v.literal("delivery_qr_scanned"),
-      v.literal("payment_released"),
-      v.literal("new_match_for_trip"),
-      v.literal("trip_session_matches")
-    ),
+        v.literal("delivery_qr_scanned"),
+        v.literal("payment_released"),
+        v.literal("new_match_for_trip"),
+        v.literal("trip_session_matches"),
+        v.literal("parcel_new"),
+        v.literal("parcel_visibility_tip"),
+        v.literal("parcel_matched")
+      ),
     title: v.string(),
     message: v.string(),
     matchId: v.optional(v.id("matches")),
@@ -283,10 +289,64 @@ export default defineSchema({
     ),
     averageRating: v.optional(v.number()),
     totalReviews: v.optional(v.number()),
+    pushTokens: v.optional(v.array(v.string())),
+    isOnline: v.optional(v.boolean()),
+    lastActiveAt: v.optional(v.number()),
+    lastKnownLocation: v.optional(
+      v.object({
+        lat: v.number(),
+        lng: v.number(),
+        updatedAt: v.number(),
+      })
+    ),
+    notificationSettings: v.optional(
+      v.object({
+        notifyRadiusKm: v.number(),
+        minPrice: v.optional(v.number()),
+        urgentOnly: v.boolean(),
+        maxPushPerHour: v.number(),
+      })
+    ),
     createdAt: v.union(v.number(), v.string()),
   })
     .index("by_visitorId", ["visitorId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .index("by_is_online", ["isOnline"])
+    .index("by_last_active", ["lastActiveAt"]),
+
+  deliveryNotificationLogs: defineTable({
+    parcelId: v.id("parcels"),
+    driverId: v.string(),
+    stage: v.union(v.literal(1), v.literal(2), v.literal(3)),
+    radiusKm: v.number(),
+    sentAt: v.number(),
+    providerResponse: v.optional(v.string()),
+    error: v.optional(v.string()),
+  })
+    .index("by_parcel_driver", ["parcelId", "driverId"])
+    .index("by_driver_sent", ["driverId", "sentAt"])
+    .index("by_parcel_stage", ["parcelId", "stage"]),
+
+  scheduledEscalations: defineTable({
+    parcelId: v.id("parcels"),
+    stage: v.union(v.literal(2), v.literal(3), v.literal(4)),
+    nextStageAt: v.number(),
+    status: v.union(v.literal("pending"), v.literal("done"), v.literal("cancelled")),
+    sentCount: v.optional(v.number()),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_parcel_status", ["parcelId", "status"])
+    .index("by_status_next", ["status", "nextStageAt"]),
+
+  requestRateLimits: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_key_window", ["key", "windowStart"])
+    .index("by_key_updated", ["key", "updatedAt"]),
 
   carrierCompliance: defineTable({
     carrierVisitorId: v.string(),

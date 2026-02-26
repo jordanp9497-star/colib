@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { computeDynamicPrice } from "../packages/shared/pricing";
 import { computeMatchScore, explainRanking, sizeIsCompatible } from "./lib/matching";
 import { distancePointToSegmentKm, windowsOverlap } from "./lib/geo";
+import { consumeRateLimit } from "./lib/rateLimit";
 
 async function validateCarrierComplianceOrThrow(
   ctx: MutationCtx,
@@ -76,6 +77,19 @@ function projectProgressOnSegment(
   if (lengthSq === 0) return 0;
   const rawT = ((point.lng - start.lng) * dx + (point.lat - start.lat) * dy) / lengthSq;
   return Math.max(0, Math.min(1, rawT));
+}
+
+async function cancelPendingEscalations(ctx: MutationCtx, parcelId: any) {
+  const pendingEscalations = await ctx.db
+    .query("scheduledEscalations")
+    .withIndex("by_parcel_status", (q) => q.eq("parcelId", parcelId).eq("status", "pending"))
+    .collect();
+  for (const escalation of pendingEscalations) {
+    await ctx.db.patch(escalation._id, {
+      status: "cancelled",
+      updatedAt: Date.now(),
+    });
+  }
 }
 
 export const listByParcel = query({
@@ -320,8 +334,12 @@ export const reserveFromTripOwner = mutation({
 
     await ctx.db.patch(parcel._id, {
       status: "matched",
+      matchedDriverId: trip.ownerVisitorId,
+      matchedAt: now,
       updatedAt: now,
     });
+
+    await cancelPendingEscalations(ctx, parcel._id);
 
     const existingShipment = await ctx.db
       .query("shipments")
@@ -400,6 +418,16 @@ export const acceptReservationRequest = mutation({
     parcelOwnerVisitorId: v.string(),
   },
   handler: async (ctx, args) => {
+    const rateCheck = await consumeRateLimit({
+      ctx,
+      key: `accept_reservation:${args.parcelOwnerVisitorId}`,
+      limit: 30,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateCheck.allowed) {
+      throw new Error("Trop de validations en peu de temps. Reessayez dans quelques minutes.");
+    }
+
     const match = await ctx.db.get(args.matchId);
     if (!match) throw new Error("Match introuvable");
 
@@ -407,6 +435,9 @@ export const acceptReservationRequest = mutation({
     if (!parcel) throw new Error("Colis introuvable");
     if (parcel.ownerVisitorId !== args.parcelOwnerVisitorId) {
       throw new Error("Non autorise");
+    }
+    if (parcel.status === "booked" || parcel.status === "completed" || parcel.status === "cancelled") {
+      throw new Error("Ce colis a deja ete traite");
     }
     if (match.status !== "requested") {
       throw new Error("Cette demande ne peut plus etre acceptee");
@@ -440,9 +471,13 @@ export const acceptReservationRequest = mutation({
     await ctx.db.patch(parcel._id, {
       status: "booked",
       matchedTripId: trip._id,
+      matchedDriverId: trip.ownerVisitorId,
+      matchedAt: now,
       pricingEstimate: match.pricingEstimate,
       updatedAt: now,
     });
+
+    await cancelPendingEscalations(ctx, parcel._id);
 
     const existingShipment = await ctx.db
       .query("shipments")
@@ -515,6 +550,19 @@ export const acceptReservationRequest = mutation({
     await ctx.db.insert("notifications", {
       recipientVisitorId: parcel.ownerVisitorId,
       actorVisitorId: trip.ownerVisitorId,
+      type: "parcel_matched",
+      title: "Transporteur trouve",
+      message: `${trip.userName} a ete confirme pour transporter votre colis`,
+      matchId: match._id,
+      tripId: trip._id,
+      parcelId: parcel._id,
+      readAt: undefined,
+      createdAt: now,
+    });
+
+    await ctx.db.insert("notifications", {
+      recipientVisitorId: parcel.ownerVisitorId,
+      actorVisitorId: trip.ownerVisitorId,
       type: "payment_required",
       title: "Paiement requis",
       message: `Confirmez le paiement de ${match.pricingEstimate.totalAmount} EUR pour bloquer les fonds et lancer le transport`,
@@ -524,6 +572,15 @@ export const acceptReservationRequest = mutation({
       readAt: undefined,
       createdAt: now,
     });
+
+    console.log(
+      JSON.stringify({
+        event: "parcel_accepted",
+        parcelId: String(parcel._id),
+        matchId: String(match._id),
+        accept_time_seconds: Math.max(0, Math.round((now - parcel.createdAt) / 1000)),
+      })
+    );
 
     return { success: true };
   },

@@ -1,9 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { Alert, Platform } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { openNavigationApp } from "@/utils/navigation";
@@ -75,6 +76,8 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
   const startTripMutation = useMutation((api as any).tripSessions.start);
   const stopTripMutation = useMutation((api as any).tripSessions.stop);
   const pushLocation = useMutation((api as any).tripSessions.pushLocation);
+  const registerPushToken = useMutation((api as any).users.registerPushToken);
+  const pingActivity = useMutation((api as any).users.pingActivity);
   const notificationsFeed = useQuery((api as any).notifications.listForUser, { userId }) as any[] | undefined;
 
   const [localFallback, setLocalFallback] = useState<ActiveSessionSnapshot | null>(null);
@@ -83,6 +86,7 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
   const isPushingRef = useRef(false);
   const pushBootTsRef = useRef(Date.now());
   const pushedNotificationIdsRef = useRef<Set<string>>(new Set());
+  const promptedParcelNotificationIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!SecureStore) return;
@@ -164,6 +168,11 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
       const kind = data?.kind;
       if (kind === "reservation_request") {
         router.push("/(tabs)/activity" as any);
+        return;
+      }
+
+      if ((kind === "parcel_new" || kind === "parcel_visibility_tip" || kind === "parcel_matched") && typeof data?.parcelId === "string") {
+        router.push(`/parcel/${data.parcelId}` as any);
       }
     });
 
@@ -173,32 +182,74 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === "web" || !userId) return;
+
+    const register = async () => {
+      try {
+        const permissions = await Notifications.getPermissionsAsync();
+        const status = permissions.granted ? permissions.status : (await Notifications.requestPermissionsAsync()).status;
+        if (status !== "granted") return;
+
+        const projectId =
+          Constants.expoConfig?.extra?.eas?.projectId ??
+          Constants.easConfig?.projectId;
+        const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+        if (token?.data) {
+          await registerPushToken({ visitorId: userId, pushToken: token.data });
+        }
+      } catch {
+        // Best effort push registration.
+      }
+    };
+
+    void register();
+  }, [registerPushToken, userId]);
+
+  useEffect(() => {
     if (Platform.OS === "web" || !notificationsFeed) {
       return;
     }
 
     for (const notification of notificationsFeed) {
-      if (
-        notification.type !== "reservation_request" ||
-        notification.readAt ||
-        notification.createdAt < pushBootTsRef.current ||
-        pushedNotificationIdsRef.current.has(String(notification._id))
-      ) {
-        continue;
-      }
+      const isSupportedType =
+        notification.type === "reservation_request" ||
+        notification.type === "parcel_new" ||
+        notification.type === "parcel_visibility_tip" ||
+        notification.type === "parcel_matched";
+      if (!isSupportedType || notification.readAt || notification.createdAt < pushBootTsRef.current) continue;
+      if (pushedNotificationIdsRef.current.has(String(notification._id))) continue;
 
       pushedNotificationIdsRef.current.add(String(notification._id));
+      const kind = String(notification.type);
       void Notifications.scheduleNotificationAsync({
         content: {
           title: notification.title,
           body: notification.message,
           data: {
-            kind: "reservation_request",
+            kind,
             matchId: notification.matchId ? String(notification.matchId) : undefined,
+            parcelId: notification.parcelId ? String(notification.parcelId) : undefined,
           },
         },
         trigger: null,
       });
+
+      if (kind === "parcel_new" && notification.parcelId) {
+        const localId = String(notification._id);
+        if (!promptedParcelNotificationIdsRef.current.has(localId)) {
+          promptedParcelNotificationIdsRef.current.add(localId);
+          Alert.alert(notification.title, notification.message, [
+            {
+              text: "Plus tard",
+              style: "cancel",
+            },
+            {
+              text: "Voir",
+              onPress: () => router.push(`/parcel/${String(notification.parcelId)}` as any),
+            },
+          ]);
+        }
+      }
     }
   }, [notificationsFeed]);
 
@@ -249,6 +300,14 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
               userId,
               location: nextPoint,
             });
+            await pingActivity({
+              visitorId: userId,
+              location: {
+                lat: nextPoint.lat,
+                lng: nextPoint.lng,
+              },
+              forceOnline: true,
+            });
             lastPushedLocationRef.current = nextPoint;
             if (typeof result?.matchesCount === "number") {
               setMatchesCount(result.matchesCount);
@@ -278,7 +337,7 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
     return () => {
       mounted = false;
     };
-  }, [activeSession, pushLocation, setMatchesCount, stopTracking, userId]);
+  }, [activeSession, pingActivity, pushLocation, setMatchesCount, stopTracking, userId]);
 
   const startTrip = useCallback(async (input: StartTripInput) => {
     if (Platform.OS !== "web") {

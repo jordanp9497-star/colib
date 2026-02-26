@@ -83,6 +83,20 @@ interface UserRecord {
   identityVerified: "none" | "pending" | "verified" | "rejected";
   averageRating?: number;
   totalReviews?: number;
+  pushTokens?: string[];
+  isOnline?: boolean;
+  lastActiveAt?: number;
+  lastKnownLocation?: {
+    lat: number;
+    lng: number;
+    updatedAt: number;
+  };
+  notificationSettings?: {
+    notifyRadiusKm: number;
+    minPrice?: number;
+    urgentOnly: boolean;
+    maxPushPerHour: number;
+  };
   createdAt: number | string;
 }
 

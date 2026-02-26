@@ -19,6 +19,7 @@ export default function ParcelDetailsScreen() {
   const parcel = useQuery(api.parcels.getById, parcelId ? { parcelId: parcelId as any } : "skip");
   const matches = useQuery(api.matches.listByParcel, parcelId ? { parcelId: parcelId as any } : "skip");
   const myTrips = useQuery(api.trips.getByUser, { userId });
+  const myNotifications = useQuery(api.notifications.listForUser, { userId });
   const reserveMatch = useMutation((api as any).matches.reserveFromTripOwner);
   const removeParcel = useMutation(api.parcels.remove);
 
@@ -29,6 +30,18 @@ export default function ParcelDetailsScreen() {
     if (!activeTrip || !matches) return null;
     return matches.find((match) => String(match.tripId) === String(activeTrip._id)) ?? null;
   }, [activeTrip, matches]);
+
+  const visibilityTip = useMemo(() => {
+    if (!parcel || !myNotifications) return null;
+    if (parcel.ownerVisitorId !== userId) return null;
+    return (
+      myNotifications.find(
+        (notification) =>
+          notification.type === "parcel_visibility_tip" &&
+          String(notification.parcelId) === String(parcel._id)
+      ) ?? null
+    );
+  }, [myNotifications, parcel, userId]);
 
   if (parcel === undefined || matches === undefined || myTrips === undefined) {
     return (
@@ -114,6 +127,16 @@ export default function ParcelDetailsScreen() {
       <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
       <Text style={styles.title}>Annonce colis</Text>
+
+      {visibilityTip ? (
+        <SurfaceCard style={styles.tipCard}>
+          <View style={styles.row}>
+            <Ionicons name="flash-outline" size={16} color={Colors.dark.warning} />
+            <Text style={styles.tipTitle}>Visibilite faible</Text>
+          </View>
+          <Text style={styles.tipText}>{visibilityTip.message}</Text>
+        </SurfaceCard>
+      ) : null}
 
       <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Itineraire du colis</Text>
@@ -319,5 +342,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: Colors.dark.text,
     fontFamily: Fonts.displaySemiBold,
+  },
+  tipCard: {
+    padding: 12,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  tipTitle: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  tipText: {
+    marginTop: 6,
+    color: Colors.dark.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: Fonts.sans,
   },
 });

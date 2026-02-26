@@ -2,6 +2,8 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { approximateZoneKey } from "./lib/geo";
 import { formatAddressShort } from "./lib/address";
+import { consumeRateLimit } from "./lib/rateLimit";
+import { triggerSmartNotificationsForParcel } from "./smartNotifications";
 
 const addressInput = v.object({
   label: v.string(),
@@ -76,6 +78,16 @@ export const create = mutation({
     parcelPhotoId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    const rateCheck = await consumeRateLimit({
+      ctx,
+      key: `create_parcel:${args.ownerVisitorId}`,
+      limit: 8,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (!rateCheck.allowed) {
+      throw new Error("Trop de creations de colis. Reessayez dans quelques minutes.");
+    }
+
     const now = Date.now();
     const id = await ctx.db.insert("parcels", {
       ownerVisitorId: args.ownerVisitorId,
@@ -101,11 +113,15 @@ export const create = mutation({
       preferredWindowEndTs: args.preferredWindowEndTs,
       publishedAt: now,
       matchedTripId: undefined,
+      matchedDriverId: undefined,
+      matchedAt: undefined,
       pricingEstimate: undefined,
       createdAt: now,
       updatedAt: now,
       approxZoneKey: approximateZoneKey(args.originAddress, args.destinationAddress),
     });
+
+    await triggerSmartNotificationsForParcel(ctx, id);
 
     return { parcelId: id };
   },
@@ -196,5 +212,16 @@ export const remove = mutation({
       status: "cancelled",
       updatedAt: Date.now(),
     });
+
+    const pendingEscalations = await ctx.db
+      .query("scheduledEscalations")
+      .withIndex("by_parcel_status", (q) => q.eq("parcelId", args.parcelId).eq("status", "pending"))
+      .collect();
+    for (const escalation of pendingEscalations) {
+      await ctx.db.patch(escalation._id, {
+        status: "cancelled",
+        updatedAt: Date.now(),
+      });
+    }
   },
 });

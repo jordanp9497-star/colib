@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { TERMS_VERSION } from "../packages/shared/legal";
+import { normalizeDriverNotificationSettings } from "../packages/shared/smartNotifications";
 
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
@@ -244,6 +245,11 @@ export const createOrUpdate = mutation({
       phone: normalizedPhone,
       emailVerified: args.emailVerified ?? false,
       identityVerified: "none",
+      pushTokens: [],
+      isOnline: false,
+      lastActiveAt: now,
+      lastKnownLocation: undefined,
+      notificationSettings: normalizeDriverNotificationSettings(undefined),
       createdAt: now,
       termsAcceptedAt: now,
       termsVersionAccepted: args.termsVersion || TERMS_VERSION,
@@ -369,6 +375,11 @@ export const registerWithPassword = mutation({
       phone: normalizedPhone,
       emailVerified: false,
       identityVerified: "none",
+      pushTokens: [],
+      isOnline: false,
+      lastActiveAt: now,
+      lastKnownLocation: undefined,
+      notificationSettings: normalizeDriverNotificationSettings(undefined),
       createdAt: now,
       termsAcceptedAt: now,
       termsVersionAccepted: args.termsVersion || TERMS_VERSION,
@@ -569,5 +580,117 @@ export const updateName = mutation({
       .first();
     if (!user) throw new Error("Utilisateur introuvable");
     await ctx.db.patch(user._id, { name: args.name });
+  },
+});
+
+export const updateDriverAvailability = mutation({
+  args: {
+    visitorId: v.string(),
+    isOnline: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_visitorId", (q) => q.eq("visitorId", args.visitorId))
+      .first();
+    if (!user) throw new Error("Utilisateur introuvable");
+
+    await ctx.db.patch(user._id, {
+      isOnline: args.isOnline,
+      lastActiveAt: Date.now(),
+    });
+  },
+});
+
+export const updateDriverNotificationSettings = mutation({
+  args: {
+    visitorId: v.string(),
+    notifyRadiusKm: v.optional(v.number()),
+    minPrice: v.optional(v.number()),
+    urgentOnly: v.optional(v.boolean()),
+    maxPushPerHour: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_visitorId", (q) => q.eq("visitorId", args.visitorId))
+      .first();
+    if (!user) throw new Error("Utilisateur introuvable");
+
+    const nextSettings = normalizeDriverNotificationSettings({
+      ...(user.notificationSettings ?? {}),
+      notifyRadiusKm: args.notifyRadiusKm ?? user.notificationSettings?.notifyRadiusKm,
+      minPrice: args.minPrice,
+      urgentOnly: args.urgentOnly ?? user.notificationSettings?.urgentOnly,
+      maxPushPerHour: args.maxPushPerHour ?? user.notificationSettings?.maxPushPerHour,
+    });
+
+    await ctx.db.patch(user._id, {
+      notificationSettings: nextSettings,
+      lastActiveAt: Date.now(),
+    });
+  },
+});
+
+export const registerPushToken = mutation({
+  args: {
+    visitorId: v.string(),
+    pushToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_visitorId", (q) => q.eq("visitorId", args.visitorId))
+      .first();
+    if (!user) throw new Error("Utilisateur introuvable");
+
+    const trimmedToken = args.pushToken.trim();
+    if (!trimmedToken) return;
+
+    const currentTokens = user.pushTokens ?? [];
+    if (currentTokens.includes(trimmedToken)) {
+      await ctx.db.patch(user._id, {
+        lastActiveAt: Date.now(),
+      });
+      return;
+    }
+
+    const nextTokens = [trimmedToken, ...currentTokens].slice(0, 5);
+    await ctx.db.patch(user._id, {
+      pushTokens: nextTokens,
+      lastActiveAt: Date.now(),
+    });
+  },
+});
+
+export const pingActivity = mutation({
+  args: {
+    visitorId: v.string(),
+    location: v.optional(
+      v.object({
+        lat: v.number(),
+        lng: v.number(),
+      })
+    ),
+    forceOnline: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_visitorId", (q) => q.eq("visitorId", args.visitorId))
+      .first();
+    if (!user) return;
+
+    await ctx.db.patch(user._id, {
+      lastActiveAt: Date.now(),
+      isOnline: args.forceOnline ?? user.isOnline ?? false,
+      lastKnownLocation: args.location
+        ? {
+            lat: args.location.lat,
+            lng: args.location.lng,
+            updatedAt: Date.now(),
+          }
+        : user.lastKnownLocation,
+    });
   },
 });

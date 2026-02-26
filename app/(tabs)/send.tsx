@@ -669,6 +669,9 @@ export default function SendScreen() {
               placeholder="Ex: 25"
               placeholderTextColor={Colors.dark.textSecondary}
             />
+            <Text style={styles.visibilityHint}>
+              Plus le prix est eleve et l urgence forte, plus votre colis sera visible rapidement.
+            </Text>
 
             <Text style={styles.label}>Photo du colis (optionnel)</Text>
             <View style={styles.photoActionsRow}>
@@ -967,6 +970,13 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8 },
   advancedToggle: { marginTop: 10, alignSelf: "flex-start" },
   advancedToggleText: { color: Colors.dark.primary, fontSize: 13, fontFamily: Fonts.sansSemiBold },
+  visibilityHint: {
+    marginTop: 6,
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: Fonts.sans,
+  },
   button: { marginTop: 20 },
   resetSearchButton: { marginTop: 10 },
   summaryCard: {
