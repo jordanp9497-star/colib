@@ -15,11 +15,53 @@ const addressInput = v.object({
 
 export const list = query({
   handler: async (ctx) => {
-    return await ctx.db
+    const trips = await ctx.db
       .query("trips")
       .withIndex("by_status_publishedAt", (q) => q.eq("status", "published"))
       .order("desc")
       .collect();
+
+    const profileByVisitorId = new Map<
+      string,
+      {
+        name: string;
+        profilePhotoUrl: string | null;
+        averageRating: number | null;
+        totalReviews: number;
+      }
+    >();
+
+    return await Promise.all(
+      trips.map(async (trip) => {
+        const ownerId = trip.ownerVisitorId;
+        let profile = profileByVisitorId.get(ownerId);
+
+        if (!profile) {
+          const user = await ctx.db
+            .query("users")
+            .withIndex("by_visitorId", (q) => q.eq("visitorId", ownerId))
+            .first();
+
+          const profilePhotoUrl = user?.profilePhotoId
+            ? await ctx.storage.getUrl(user.profilePhotoId)
+            : null;
+
+          profile = {
+            name: user?.name ?? trip.userName,
+            profilePhotoUrl,
+            averageRating: user?.averageRating ?? null,
+            totalReviews: user?.totalReviews ?? 0,
+          };
+
+          profileByVisitorId.set(ownerId, profile);
+        }
+
+        return {
+          ...trip,
+          carrierProfile: profile,
+        };
+      })
+    );
   },
 });
 

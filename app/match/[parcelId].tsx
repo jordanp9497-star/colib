@@ -1,14 +1,29 @@
 import { useMemo, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import StarRating from "@/components/profile/StarRating";
 import { Colors, Fonts } from "@/constants/theme";
 
 type SortBy = "best" | "soonest" | "detour" | "price";
+
+type TripPreview = {
+  _id: string;
+  origin: string;
+  destination: string;
+  userName: string;
+  originAddress: { lat: number; lng: number; city?: string };
+  carrierProfile?: {
+    name: string;
+    profilePhotoUrl: string | null;
+    averageRating: number | null;
+    totalReviews: number;
+  };
+};
 
 export default function ParcelMatchScreen() {
   const params = useLocalSearchParams<{ parcelId: string }>();
@@ -19,7 +34,12 @@ export default function ParcelMatchScreen() {
 
   const parcel = useQuery(api.parcels.getById, parcelId ? { parcelId } : "skip");
   const matches = useQuery(api.matches.listByParcel, parcelId ? { parcelId } : "skip");
-  const trips = useQuery(api.trips.list);
+  const trips = useQuery(api.trips.list) as TripPreview[] | undefined;
+
+  const tripById = useMemo(
+    () => new Map((trips ?? []).map((trip) => [String(trip._id), trip])),
+    [trips]
+  );
 
   const sorted = useMemo(() => {
     const list = (matches ?? []).filter((m) => m.detourMinutes <= detourLimit);
@@ -32,7 +52,7 @@ export default function ParcelMatchScreen() {
   }, [detourLimit, matches, sortBy]);
 
   const mapPins = useMemo(() => {
-    const pins: Array<{ id: string; latitude: number; longitude: number; title: string; color: string }> = [];
+    const pins: { id: string; latitude: number; longitude: number; title: string; color: string }[] = [];
     if (parcel) {
       pins.push({
         id: `parcel-origin-${parcel._id}`,
@@ -50,9 +70,8 @@ export default function ParcelMatchScreen() {
       });
     }
 
-    const tripById = new Map((trips ?? []).map((trip) => [trip._id, trip]));
     for (const match of sorted) {
-      const trip = tripById.get(match.tripId);
+      const trip = tripById.get(String(match.tripId));
       if (!trip) continue;
       pins.push({
         id: `trip-origin-${trip._id}`,
@@ -64,10 +83,10 @@ export default function ParcelMatchScreen() {
     }
 
     return pins;
-  }, [parcel, sorted, trips]);
+  }, [parcel, sorted, tripById]);
 
   const mapPaths = useMemo(() => {
-    const paths: Array<{ id: string; coordinates: Array<{ latitude: number; longitude: number }>; color: string; width: number }> = [];
+    const paths: { id: string; coordinates: { latitude: number; longitude: number }[]; color: string; width: number }[] = [];
     if (parcel) {
       paths.push({
         id: `parcel-path-${parcel._id}`,
@@ -145,10 +164,47 @@ export default function ParcelMatchScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Score {item.score}/100</Text>
-            <Text style={styles.cardLine}>{item.detourMinutes} min ({item.detourDistanceKm} km)</Text>
-            <Text style={styles.cardLine}>{item.rankingReason}</Text>
-            <Text style={styles.price}>{item.pricingEstimate.totalAmount} EUR</Text>
+            {(() => {
+              const trip = tripById.get(String(item.tripId));
+              const carrierName = trip?.carrierProfile?.name ?? trip?.userName ?? "Transporteur";
+              const carrierPhoto = trip?.carrierProfile?.profilePhotoUrl ?? null;
+
+              return (
+                <>
+                  <View style={styles.carrierRow}>
+                    {carrierPhoto ? (
+                      <Image source={{ uri: carrierPhoto }} style={styles.carrierAvatar} />
+                    ) : (
+                      <View style={styles.carrierAvatarFallback}>
+                        <Text style={styles.carrierAvatarText}>
+                          {carrierName.trim().charAt(0).toUpperCase() || "?"}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.carrierMeta}>
+                      <Text style={styles.carrierName} numberOfLines={1}>
+                        {carrierName}
+                      </Text>
+                      <StarRating
+                        rating={trip?.carrierProfile?.averageRating}
+                        totalReviews={trip?.carrierProfile?.totalReviews ?? 0}
+                        size={12}
+                        color="#FDE68A"
+                      />
+                    </View>
+                  </View>
+                  {trip ? (
+                    <Text style={styles.cardLine} numberOfLines={1}>
+                      {trip.origin} {" -> "} {trip.destination}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.cardTitle}>Score {item.score}/100</Text>
+                  <Text style={styles.cardLine}>{item.detourMinutes} min ({item.detourDistanceKm} km)</Text>
+                  <Text style={styles.cardLine}>{item.rankingReason}</Text>
+                  <Text style={styles.price}>{item.pricingEstimate.totalAmount} EUR</Text>
+                </>
+              );
+            })()}
           </View>
         )}
       />
@@ -197,6 +253,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
+  },
+  carrierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  carrierAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  carrierAvatarFallback: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  carrierAvatarText: {
+    fontSize: 12,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  carrierMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  carrierName: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
   },
   cardTitle: { fontSize: 14, color: Colors.dark.text, marginBottom: 4, fontFamily: Fonts.sansSemiBold },
   cardLine: { fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },

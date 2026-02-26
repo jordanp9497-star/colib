@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -35,18 +35,27 @@ export function AddressAutocompleteInput({
   const [input, setInput] = useState(
     value ? formatShortAddress(value, value.label) : ""
   );
-  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const { suggestions, loading, error, resolveSuggestion } = useAddressAutocomplete(input);
+
+  // Use refs for callbacks to avoid unnecessary state updates during typing
+  const onInputChangeTextRef = useRef(onInputChangeText);
+  onInputChangeTextRef.current = onInputChangeText;
+
   const hasValue = input.trim().length > 0;
   const normalizedSelectedLabel = value ? formatShortAddress(value, value.label).trim() : "";
   const hasValidatedValue = Boolean(value && input.trim() === normalizedSelectedLabel);
 
+  // Derive suggestion visibility without extra state changes in onChangeText
+  const showSuggestions = focused && hasValue && !dismissed && suggestions.length > 0;
+
   const handleCurrentLocationPress = async () => {
     if (isLocating) return;
     setLocationError(null);
-    setOpen(false);
+    setDismissed(true);
     setIsLocating(true);
 
     try {
@@ -98,7 +107,9 @@ export function AddressAutocompleteInput({
   }, [value]);
 
   return (
-    <View style={[styles.root, open && styles.rootRaised]}>
+    // FIX 1: zIndex is ALWAYS static — no dynamic style change that would
+    // cause Android to rearrange the native view hierarchy and steal focus
+    <View style={styles.root}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         {enableCurrentLocation ? (
@@ -117,36 +128,46 @@ export function AddressAutocompleteInput({
           value={input}
           placeholder={placeholder}
           placeholderTextColor={Colors.dark.textSecondary}
-          onFocus={() => setOpen(input.trim().length > 0)}
-          onBlur={() => {
-            setTimeout(() => setOpen(false), 120);
+          onFocus={() => {
+            setFocused(true);
+            setDismissed(false);
           }}
+          onBlur={() => {
+            setTimeout(() => setFocused(false), 150);
+          }}
+          // FIX 3: onChangeText only calls setInput — no other setState that
+          // would change the component tree and cause the TextInput to lose focus
           onChangeText={(text) => {
             setInput(text);
-            onInputChangeText?.(text);
-            setLocationError(null);
-            setOpen(text.trim().length > 0);
+            onInputChangeTextRef.current?.(text);
+            if (locationError) setLocationError(null);
+            if (dismissed) setDismissed(false);
           }}
         />
-        {hasValue ? (
-          <Pressable
-            style={styles.clearButton}
-            onPress={() => {
-              setInput("");
-              onChange(null);
-              setLocationError(null);
-              setOpen(false);
-            }}
-          >
-            <Text style={styles.clearButtonText}>x</Text>
-          </Pressable>
-        ) : null}
 
-        {open && suggestions.length > 0 ? (
+        {/* FIX 2: Clear button is ALWAYS rendered — we toggle opacity instead
+            of mounting/unmounting so the native view tree stays stable */}
+        <Pressable
+          style={[styles.clearButton, { opacity: hasValue ? 1 : 0 }]}
+          disabled={!hasValue}
+          hitSlop={hasValue ? 4 : 0}
+          onPress={() => {
+            setInput("");
+            onChange(null);
+            setLocationError(null);
+            setDismissed(true);
+          }}
+        >
+          <Text style={styles.clearButtonText}>x</Text>
+        </Pressable>
+
+        {showSuggestions ? (
           <ScrollView
             style={styles.suggestionBox}
             nestedScrollEnabled
-            keyboardShouldPersistTaps="handled"
+            // FIX 4: "always" is more reliable than "handled" — guarantees
+            // the keyboard stays open when interacting with suggestions
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           >
             {suggestions.map((item) => (
@@ -158,7 +179,7 @@ export function AddressAutocompleteInput({
                   if (!geocoded) return;
                   onChange(geocoded);
                   setInput(formatShortAddress(geocoded, geocoded.label));
-                  setOpen(false);
+                  setDismissed(true);
                 }}
               >
                 <Text style={styles.suggestionMain} numberOfLines={1}>
@@ -191,10 +212,8 @@ export function AddressAutocompleteInput({
 }
 
 const styles = StyleSheet.create({
-  root: { marginBottom: 12 },
-  rootRaised: {
-    zIndex: 20,
-  },
+  // Static zIndex — never changes after mount
+  root: { marginBottom: 12, zIndex: 1 },
   labelRow: {
     marginBottom: 6,
     flexDirection: "row",

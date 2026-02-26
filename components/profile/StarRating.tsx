@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Colors, Fonts } from "@/constants/theme";
 
 interface StarRatingProps {
   rating: number | null | undefined;
@@ -52,12 +53,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   text: {
-    fontWeight: "600",
-    color: "#1E293B",
+    color: Colors.dark.text,
     marginLeft: 6,
+    fontFamily: Fonts.sansSemiBold,
   },
   reviewCount: {
-    color: "#94A3B8",
+    color: Colors.dark.textSecondary,
     marginLeft: 4,
+    fontFamily: Fonts.sans,
   },
 });

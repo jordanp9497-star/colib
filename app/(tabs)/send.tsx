@@ -104,6 +104,7 @@ export default function SendScreen() {
   const [step, setStep] = useState(1);
   const [originAddress, setOriginAddress] = useState<GeocodedAddress | null>(null);
   const [destinationAddress, setDestinationAddress] = useState<GeocodedAddress | null>(null);
+  const [parcelDropoffAddress, setParcelDropoffAddress] = useState<GeocodedAddress | null>(null);
   const [size, setSize] = useState<"petit" | "moyen" | "grand">("petit");
   const [weight, setWeight] = useState("2");
   const [volumeDm3, setVolumeDm3] = useState("12");
@@ -123,6 +124,7 @@ export default function SendScreen() {
   const resetForm = () => {
     setOriginAddress(null);
     setDestinationAddress(null);
+    setParcelDropoffAddress(null);
     setSize("petit");
     setWeight("2");
     setVolumeDm3("12");
@@ -156,7 +158,8 @@ export default function SendScreen() {
   }, [proposalTrip]);
 
   const proposalDetour = useMemo(() => {
-    if (!isProposalMode || !proposalTrip || !proposalRouteBounds || !originAddress || !destinationAddress) {
+    const dropoff = isProposalMode ? parcelDropoffAddress : destinationAddress;
+    if (!isProposalMode || !proposalTrip || !proposalRouteBounds || !originAddress || !dropoff) {
       return null;
     }
 
@@ -166,7 +169,7 @@ export default function SendScreen() {
       proposalRouteBounds.destination
     );
     const dropToRoute = distancePointToSegmentKm(
-      { lat: destinationAddress.lat, lng: destinationAddress.lng },
+      { lat: dropoff.lat, lng: dropoff.lng },
       proposalRouteBounds.origin,
       proposalRouteBounds.destination
     );
@@ -179,7 +182,7 @@ export default function SendScreen() {
       proposalRouteBounds.destination
     );
     const dropProgress = projectProgressOnSegment(
-      { lat: destinationAddress.lat, lng: destinationAddress.lng },
+      { lat: dropoff.lat, lng: dropoff.lng },
       proposalRouteBounds.origin,
       proposalRouteBounds.destination
     );
@@ -191,7 +194,7 @@ export default function SendScreen() {
       dropProgress,
       isDropAfterPickup: dropProgress + 0.03 >= pickupProgress,
     };
-  }, [destinationAddress, isProposalMode, originAddress, proposalRouteBounds, proposalTrip]);
+  }, [destinationAddress, isProposalMode, originAddress, parcelDropoffAddress, proposalRouteBounds, proposalTrip]);
 
   const proposalPriceEstimate = useMemo(() => {
     if (!proposalDetour) return null;
@@ -309,7 +312,9 @@ export default function SendScreen() {
   };
 
   const handlePublish = async () => {
-    if (!originAddress || !destinationAddress) {
+    const effectiveDestinationAddress = isProposalMode ? parcelDropoffAddress : destinationAddress;
+
+    if (!originAddress || !effectiveDestinationAddress) {
       Alert.alert("Champs requis", "Selectionnez l adresse de depart et l adresse d arrivee.");
       return;
     }
@@ -386,7 +391,7 @@ export default function SendScreen() {
       const payload = {
         ownerVisitorId: userId,
         originAddress,
-        destinationAddress,
+        destinationAddress: effectiveDestinationAddress,
         size: isProposalMode ? PROPOSAL_DEFAULT_SIZE : size,
         weight: weightNum,
         volumeDm3: volumeNum,
@@ -492,11 +497,15 @@ export default function SendScreen() {
               onChange={setOriginAddress}
               enableCurrentLocation
             />
+            <Text style={styles.label}>Adresse de destination du trajet</Text>
+            <View style={styles.readonlyCard}>
+              <Text style={styles.readonlyText}>{proposalTrip?.destination ?? "-"}</Text>
+            </View>
             <AddressAutocompleteInput
-              label="Adresse de depot"
+              label="Adresse de depot du colis"
               placeholder="Ou livrer le colis"
-              value={destinationAddress}
-              onChange={setDestinationAddress}
+              value={parcelDropoffAddress}
+              onChange={setParcelDropoffAddress}
             />
 
             <Text style={styles.label}>Numero du destinataire (SMS QR)</Text>
@@ -797,6 +806,19 @@ const styles = StyleSheet.create({
   },
   stepTitle: { fontSize: 16, color: Colors.dark.text, marginBottom: 10, fontFamily: Fonts.displaySemiBold },
   label: { fontSize: 14, color: Colors.dark.textSecondary, marginBottom: 6, marginTop: 10, fontFamily: Fonts.sansSemiBold },
+  readonlyCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  readonlyText: {
+    color: Colors.dark.text,
+    fontSize: 14,
+    fontFamily: Fonts.sans,
+  },
   input: {
     backgroundColor: Colors.dark.surface,
     borderColor: Colors.dark.border,

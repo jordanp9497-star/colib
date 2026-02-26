@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Image, View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatShortAddress } from "@/utils/address";
 import { Colors, Fonts } from "@/constants/theme";
+import StarRating from "@/components/profile/StarRating";
 
 interface Trip {
   _id: string;
@@ -23,6 +24,12 @@ interface Trip {
   price: number;
   description?: string;
   phone?: string;
+  carrierProfile?: {
+    name: string;
+    profilePhotoUrl: string | null;
+    averageRating: number | null;
+    totalReviews: number;
+  };
 }
 
 const spaceConfig = {
@@ -43,6 +50,11 @@ export default function TripCard({
   const space = spaceConfig[trip.availableSpace];
   const shortOrigin = formatShortAddress(trip.originAddress, trip.origin);
   const shortDestination = formatShortAddress(trip.destinationAddress, trip.destination);
+  const carrierName = trip.carrierProfile?.name ?? trip.userName;
+  const carrierPhotoUrl = trip.carrierProfile?.profilePhotoUrl ?? null;
+  const carrierInitial = carrierName.trim().charAt(0).toUpperCase() || "?";
+  const carrierRating = trip.carrierProfile?.averageRating ?? null;
+  const carrierReviewCount = trip.carrierProfile?.totalReviews ?? 0;
 
   return (
     <View style={styles.card}>
@@ -88,8 +100,24 @@ export default function TripCard({
 
       <View style={styles.footer}>
         <View style={styles.user}>
-          <Ionicons name="person-circle-outline" size={18} color={Colors.dark.textSecondary} />
-          <Text style={styles.userName}>{trip.userName}</Text>
+          {carrierPhotoUrl ? (
+            <Image source={{ uri: carrierPhotoUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarFallbackText}>{carrierInitial}</Text>
+            </View>
+          )}
+          <View style={styles.userMeta}>
+            <Text style={styles.userName} numberOfLines={1}>
+              {carrierName}
+            </Text>
+            <StarRating
+              rating={carrierRating}
+              totalReviews={carrierReviewCount}
+              size={12}
+              color="#FDE68A"
+            />
+          </View>
         </View>
         {trip.phone ? (
           <View style={styles.detailItem}>
@@ -214,13 +242,39 @@ const styles = StyleSheet.create({
   user: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  userMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  avatarFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  avatarFallbackText: {
+    fontSize: 12,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   userName: {
     fontSize: 13,
-    color: Colors.dark.textSecondary,
-    maxWidth: 150,
-    fontFamily: Fonts.sans,
+    color: Colors.dark.text,
+    fontFamily: Fonts.sansSemiBold,
   },
   actionsRow: {
     marginTop: 10,

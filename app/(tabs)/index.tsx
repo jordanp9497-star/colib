@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteI
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
 import type { MapPath, MapPin } from "@/components/maps/CrossPlatformMap.types";
 import { buildDayWindowTimestamps } from "@/components/forms/TimeWindowInput";
+import StarRating from "@/components/profile/StarRating";
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { ColibLogoMark } from "@/components/branding/ColibLogoMark";
 import { Colors, Fonts, Typography } from "@/constants/theme";
@@ -37,6 +39,12 @@ type TripListItem = {
   description?: string;
   phone?: string;
   userName: string;
+  carrierProfile?: {
+    name: string;
+    profilePhotoUrl: string | null;
+    averageRating: number | null;
+    totalReviews: number;
+  };
   originAddress: { lat: number; lng: number; label?: string; city?: string; postalCode?: string };
   destinationAddress: { lat: number; lng: number; label?: string; city?: string; postalCode?: string };
   windowStartTs?: number;
@@ -462,6 +470,34 @@ export default function TripsScreen() {
                   <Text style={styles.tripActionRoute} numberOfLines={1}>
                     {selectedMapTrip.origin} {" -> "} {selectedMapTrip.destination}
                   </Text>
+                  <View style={styles.tripCarrierRow}>
+                    {selectedMapTrip.carrierProfile?.profilePhotoUrl ? (
+                      <Image
+                        source={{ uri: selectedMapTrip.carrierProfile.profilePhotoUrl }}
+                        style={styles.tripCarrierAvatar}
+                      />
+                    ) : (
+                      <View style={styles.tripCarrierAvatarFallback}>
+                        <Text style={styles.tripCarrierAvatarText}>
+                          {(selectedMapTrip.carrierProfile?.name ?? selectedMapTrip.userName)
+                            .trim()
+                            .charAt(0)
+                            .toUpperCase() || "?"}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.tripCarrierMeta}>
+                      <Text style={styles.tripCarrierName} numberOfLines={1}>
+                        {selectedMapTrip.carrierProfile?.name ?? selectedMapTrip.userName}
+                      </Text>
+                      <StarRating
+                        rating={selectedMapTrip.carrierProfile?.averageRating}
+                        totalReviews={selectedMapTrip.carrierProfile?.totalReviews ?? 0}
+                        size={12}
+                        color="#FDE68A"
+                      />
+                    </View>
+                  </View>
                   <Text style={styles.tripActionMeta}>
                     Espace {selectedMapTrip.availableSpace} - Base {selectedMapTrip.price} EUR
                   </Text>
@@ -756,6 +792,42 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
     fontSize: 13,
     fontFamily: Fonts.sans,
+  },
+  tripCarrierRow: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tripCarrierAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.dark.surfaceMuted,
+  },
+  tripCarrierAvatarFallback: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+  },
+  tripCarrierAvatarText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  tripCarrierMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tripCarrierName: {
+    color: Colors.dark.text,
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
   },
   tripActionMeta: {
     color: Colors.dark.textSecondary,
