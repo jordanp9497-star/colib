@@ -46,6 +46,20 @@ export default function ParcelDetailsScreen() {
     );
   }
 
+  const canReserve = Boolean(matchForActiveTrip);
+  const shortOrigin = formatShortAddress(parcel.originAddress, parcel.origin);
+  const shortDestination = formatShortAddress(parcel.destinationAddress, parcel.destination);
+  const isOwner = parcel.ownerVisitorId === userId;
+  const reserveHint = !activeTrip
+    ? isOwner
+      ? "Publiez un trajet pour tester la reservation de bout en bout."
+      : "Publiez un trajet pour pouvoir reserver ce colis."
+    : !canReserve
+      ? "Ce colis n est pas encore match avec votre trajet actif."
+      : isOwner
+        ? "Mode test solo: vous pouvez reserver votre propre colis pour valider le flow complet."
+        : "Ce colis est compatible avec votre trajet actif.";
+
   const handleReserve = async () => {
     if (!matchForActiveTrip) {
       Alert.alert("Reservation impossible", "Ce colis n'est pas associe a votre trajet actif.");
@@ -57,18 +71,18 @@ export default function ParcelDetailsScreen() {
         matchId: matchForActiveTrip._id,
         tripOwnerVisitorId: userId,
       });
-      Alert.alert("Demande envoyee", "Le publicateur du colis a recu votre demande de reservation.");
+      Alert.alert(
+        "Demande envoyee",
+        isOwner
+          ? "Mode test solo: ouvrez Activite pour accepter la demande puis poursuivre le suivi."
+          : "Le publicateur du colis a recu votre demande de reservation."
+      );
     } catch {
       Alert.alert("Erreur", "Impossible de reserver ce colis pour le moment.");
     } finally {
       setIsReserving(false);
     }
   };
-
-  const canReserve = Boolean(matchForActiveTrip);
-  const shortOrigin = formatShortAddress(parcel.originAddress, parcel.origin);
-  const shortDestination = formatShortAddress(parcel.destinationAddress, parcel.destination);
-  const isOwner = parcel.ownerVisitorId === userId;
 
   const handleDeleteParcel = () => {
     Alert.alert("Supprimer l'annonce", "Voulez-vous vraiment supprimer ce colis ?", [
@@ -147,28 +161,32 @@ export default function ParcelDetailsScreen() {
           />
           <ActionButton label="Supprimer l'annonce" variant="danger" size="sm" style={styles.deleteButton} onPress={handleDeleteParcel} />
         </View>
-      ) : (
-        <SurfaceCard style={styles.card}>
-          <Text style={styles.sectionTitle}>Reserver</Text>
-          {!activeTrip ? (
-            <Text style={styles.hint}>Publiez un trajet pour pouvoir reserver ce colis.</Text>
-          ) : !canReserve ? (
-            <Text style={styles.hint}>Ce colis n est pas encore match avec votre trajet actif.</Text>
-          ) : (
-            <Text style={styles.hint}>Ce colis est compatible avec votre trajet actif.</Text>
-          )}
+      ) : null}
 
-          <ActionButton
-            label="Reserver"
-            variant="info"
-            size="sm"
-            loading={isReserving}
-            style={[styles.reserveButton, (!canReserve || isReserving) && styles.reserveButtonDisabled]}
-            onPress={handleReserve}
-            disabled={!canReserve || isReserving}
-          />
-        </SurfaceCard>
-      )}
+      <SurfaceCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Reserver</Text>
+        <Text style={styles.hint}>{reserveHint}</Text>
+
+        {isOwner ? (
+          <View style={styles.soloFlowCard}>
+            <Text style={styles.soloFlowTitle}>Test solo - flow complet</Text>
+            <Text style={styles.soloFlowStep}>1. Reserver ce colis depuis votre trajet actif</Text>
+            <Text style={styles.soloFlowStep}>2. Ouvrir Activite et accepter la demande</Text>
+            <Text style={styles.soloFlowStep}>3. Ouvrir le suivi, confirmer le paiement puis avancer les statuts</Text>
+            <Text style={styles.soloFlowStep}>4. Finaliser la livraison et scanner le QR code</Text>
+          </View>
+        ) : null}
+
+        <ActionButton
+          label={isOwner ? "Reserver (test solo)" : "Reserver"}
+          variant="info"
+          size="sm"
+          loading={isReserving}
+          style={[styles.reserveButton, (!canReserve || isReserving) && styles.reserveButtonDisabled]}
+          onPress={handleReserve}
+          disabled={!canReserve || isReserving}
+        />
+      </SurfaceCard>
     </ScrollView>
   );
 }
@@ -261,6 +279,25 @@ const styles = StyleSheet.create({
   },
   reserveButtonDisabled: {
     opacity: 0.5,
+  },
+  soloFlowCard: {
+    marginBottom: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 4,
+  },
+  soloFlowTitle: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  soloFlowStep: {
+    color: Colors.dark.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: Fonts.sans,
   },
   actionsRow: {
     marginTop: 2,

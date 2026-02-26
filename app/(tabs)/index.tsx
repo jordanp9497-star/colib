@@ -95,7 +95,7 @@ export default function TripsScreen() {
   const [results, setResults] = useState<TripListItem[]>([]);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
-  const [mapFiltersCollapsed, setMapFiltersCollapsed] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
   const [selectedMapTripId, setSelectedMapTripId] = useState<string | null>(null);
   const [isHydratingFilters, setIsHydratingFilters] = useState(true);
   const [lastSearch, setLastSearch] = useState<PersistedSearch | null>(null);
@@ -234,14 +234,8 @@ export default function TripsScreen() {
 
   const listData = useMemo(() => (submitted ? results : []), [results, submitted]);
   const isIdleListState = !submitted;
-  const showSearchPanel = viewMode !== "map" || !mapFiltersCollapsed;
+  const showSearchPanel = !filtersCollapsed;
   const mapData = useMemo(() => (viewMode === "map" ? listData : []), [listData, viewMode]);
-
-  useEffect(() => {
-    if (viewMode !== "map" && mapFiltersCollapsed) {
-      setMapFiltersCollapsed(false);
-    }
-  }, [mapFiltersCollapsed, viewMode]);
 
   const mapPins = useMemo(() => {
     const pins: MapPin[] = [];
@@ -394,28 +388,26 @@ export default function TripsScreen() {
           </TouchableOpacity>
         </View>
 
-        {viewMode === "map" ? (
-          <TouchableOpacity
-            style={styles.collapseSearchButton}
-            onPress={() => setMapFiltersCollapsed(true)}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="chevron-up" size={14} color={Colors.dark.textSecondary} />
-            <Text style={styles.collapseSearchButtonText}>Masquer la recherche</Text>
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity
+          style={styles.collapseSearchButton}
+          onPress={() => setFiltersCollapsed(true)}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="chevron-up" size={14} color={Colors.dark.textSecondary} />
+          <Text style={styles.collapseSearchButtonText}>Masquer les filtres</Text>
+        </TouchableOpacity>
         </View> : (
           <TouchableOpacity
             style={styles.collapsedSearchCard}
-            onPress={() => setMapFiltersCollapsed(false)}
+            onPress={() => setFiltersCollapsed(false)}
             activeOpacity={0.9}
           >
             <View style={styles.collapsedSearchHeader}>
-              <Text style={styles.collapsedSearchTitle}>Recherche masquee</Text>
+              <Text style={styles.collapsedSearchTitle}>Filtres masques</Text>
               <Ionicons name="chevron-down" size={16} color={Colors.dark.textSecondary} />
             </View>
             <Text style={styles.collapsedSearchHint} numberOfLines={1}>
-              {destinationZone?.label ?? "Touchez pour afficher les filtres"}
+              {destinationZone?.label ?? "Touchez pour afficher la recherche"}
             </Text>
           </TouchableOpacity>
         )}
@@ -454,7 +446,7 @@ export default function TripsScreen() {
             <>
               <View style={styles.mapMetaRow}>
                 <Text style={styles.resultsMetaText}>{mapData.length} trajets trouves</Text>
-                <Text style={styles.mapHint}>Touchez un trajet pour proposer un colis</Text>
+                <Text style={styles.mapHint}>Touchez un trajet pour proposer votre colis</Text>
               </View>
               <CrossPlatformMap
                 pins={mapPins}
@@ -506,7 +498,7 @@ export default function TripsScreen() {
                       style={styles.tripActionPrimary}
                       onPress={() => openProposalForTrip(String(selectedMapTrip._id))}
                     >
-                      <Text style={styles.tripActionPrimaryText}>Proposer un colis</Text>
+                      <Text style={styles.tripActionPrimaryText}>Proposer votre colis</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.tripActionSecondary}
@@ -529,9 +521,22 @@ export default function TripsScreen() {
             data={listData}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
-              <TouchableOpacity activeOpacity={0.86} onPress={() => router.push(`/trip/${item._id}` as any)}>
-                <TripCard trip={item} />
-              </TouchableOpacity>
+              <View style={styles.listTripItem}>
+                <TouchableOpacity activeOpacity={0.86} onPress={() => router.push(`/trip/${item._id}` as any)}>
+                  <TripCard trip={item} />
+                </TouchableOpacity>
+                <View style={styles.listTripActions}>
+                  <TouchableOpacity style={styles.listTripPrimary} onPress={() => openProposalForTrip(String(item._id))}>
+                    <Text style={styles.listTripPrimaryText}>Proposer votre colis</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.listTripSecondary}
+                    onPress={() => router.push(`/trip/${item._id}` as any)}
+                  >
+                    <Text style={styles.listTripSecondaryText}>Voir le trajet</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
@@ -874,6 +879,37 @@ const styles = StyleSheet.create({
   list: {
     padding: 20,
     paddingBottom: 110,
+    gap: 10,
+  },
+  listTripItem: {
+    gap: 8,
+  },
+  listTripActions: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  listTripPrimary: {
+    borderRadius: 10,
+    backgroundColor: Colors.dark.primary,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  listTripPrimaryText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
+  },
+  listTripSecondary: {
+    borderRadius: 10,
+    backgroundColor: Colors.dark.surfaceMuted,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+  },
+  listTripSecondaryText: {
+    color: Colors.dark.text,
+    fontSize: 12,
+    fontFamily: Fonts.sansSemiBold,
   },
   skeletonList: {
     paddingHorizontal: 20,
