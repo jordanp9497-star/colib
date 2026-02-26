@@ -206,6 +206,8 @@ export const getPaymentAndDeliveryState = query({
     const shipment = await ctx.db.get(args.shipmentId);
     if (!shipment) return null;
     ensureParticipant(shipment, args.requesterVisitorId);
+    const match = await ctx.db.get(shipment.matchId);
+    const reservationAccepted = match?.status === "accepted";
 
     const latestVerification = (
       await ctx.db
@@ -218,13 +220,19 @@ export const getPaymentAndDeliveryState = query({
     const role = getRole(shipment, args.requesterVisitorId);
     return {
       role,
+      reservationAccepted,
       paymentStatus: shipment.paymentStatus,
       paymentAmount: shipment.paymentAmount,
       paymentCurrency: shipment.paymentCurrency,
       paymentHeldAt: shipment.paymentHeldAt,
       paymentReleasedAt: shipment.paymentReleasedAt,
-      canPay: role === "customer" && shipment.paymentStatus === "pending" && shipment.status !== "cancelled",
+      canPay:
+        reservationAccepted &&
+        role === "customer" &&
+        shipment.paymentStatus === "pending" &&
+        shipment.status !== "cancelled",
       canScanQr:
+        reservationAccepted &&
         role === "carrier" &&
         shipment.paymentStatus === "held" &&
         shipment.status === "near_delivery" &&
@@ -254,6 +262,10 @@ export const confirmPaymentHold = mutation({
     const shipment = await ctx.db.get(args.shipmentId);
     if (!shipment) throw new Error("Transport introuvable");
     ensureParticipant(shipment, args.actorVisitorId);
+    const match = await ctx.db.get(shipment.matchId);
+    if (match?.status !== "accepted") {
+      throw new Error("Paiement disponible apres validation de la demande");
+    }
     if (shipment.customerVisitorId !== args.actorVisitorId) {
       throw new Error("Seul le posteur peut effectuer le paiement");
     }

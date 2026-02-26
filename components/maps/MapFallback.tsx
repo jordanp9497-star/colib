@@ -15,8 +15,8 @@ const styles = StyleSheet.create({
   box: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#E2E8F0",
+    borderColor: "#243242",
+    backgroundColor: "#131C26",
     minHeight: 220,
     padding: 14,
     justifyContent: "center",
@@ -24,12 +24,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#0F172A",
+    color: "#EAF0F6",
     marginBottom: 8,
   },
   text: {
     fontSize: 13,
     lineHeight: 18,
-    color: "#334155",
+    color: "#99A7B6",
   },
 });

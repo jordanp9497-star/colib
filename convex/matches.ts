@@ -323,20 +323,72 @@ export const reserveFromTripOwner = mutation({
       updatedAt: now,
     });
 
-    if (parcel.ownerVisitorId !== trip.ownerVisitorId) {
-      await ctx.db.insert("notifications", {
-        recipientVisitorId: parcel.ownerVisitorId,
-        actorVisitorId: trip.ownerVisitorId,
-        type: "reservation_request",
-        title: "Nouvelle demande de reservation",
-        message: `${trip.userName} souhaite transporter votre colis`,
+    const existingShipment = await ctx.db
+      .query("shipments")
+      .withIndex("by_match", (q) => q.eq("matchId", match._id))
+      .first();
+
+    if (!existingShipment) {
+      const shipmentId = await ctx.db.insert("shipments", {
         matchId: match._id,
         tripId: trip._id,
         parcelId: parcel._id,
-        readAt: undefined,
+        carrierVisitorId: trip.ownerVisitorId,
+        customerVisitorId: parcel.ownerVisitorId,
+        status: "carrier_assigned",
+        paymentStatus: "pending",
+        paymentAmount: match.pricingEstimate.totalAmount,
+        paymentCurrency: match.pricingEstimate.currency,
+        paymentProvider: undefined,
+        paymentReference: undefined,
+        paymentHeldAt: undefined,
+        paymentReleasedAt: undefined,
+        insuranceEligible: true,
+        insuranceBlockedReason: undefined,
+        lastTrackingAt: undefined,
+        deliveredAt: undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await ctx.db.insert("shipmentEvents", {
+        shipmentId,
+        eventType: "reservation_requested",
+        actorVisitorId: trip.ownerVisitorId,
+        fromStatus: undefined,
+        toStatus: "carrier_assigned",
+        payload: {
+          matchId: match._id,
+          tripId: trip._id,
+          parcelId: parcel._id,
+          amount: match.pricingEstimate.totalAmount,
+        },
         createdAt: now,
       });
+
+      await ctx.db.insert("shipmentMessages", {
+        shipmentId,
+        senderVisitorId: trip.ownerVisitorId,
+        senderRole: "system",
+        body: "Nouvelle demande de prise en charge. Utilisez cette messagerie pour echanger avant validation.",
+        moderationFlags: [],
+        createdAt: now,
+        readAt: undefined,
+      });
     }
+
+    await ctx.db.insert("notifications", {
+      recipientVisitorId: parcel.ownerVisitorId,
+      actorVisitorId: trip.ownerVisitorId,
+      type: "reservation_request",
+      title: "Nouvelle demande de prise en charge",
+      message: `${trip.userName} souhaite transporter votre colis`,
+      matchId: match._id,
+      tripId: trip._id,
+      parcelId: parcel._id,
+      readAt: undefined,
+      createdAt: now,
+    });
 
     return { success: true };
   },

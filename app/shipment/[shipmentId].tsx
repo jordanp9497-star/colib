@@ -109,7 +109,9 @@ export default function ShipmentDetailsScreen() {
 
   const suggestedNext = NEXT_STATUS[shipment.status] ?? null;
   const suggestedNextLabel = suggestedNext ? (STATUS_LABELS[suggestedNext] ?? suggestedNext) : null;
+  const reservationAccepted = paymentState?.reservationAccepted ?? false;
   const canAdvance =
+    reservationAccepted &&
     suggestedNext !== null &&
     ((role === "carrier" && suggestedNext !== "delivered") || suggestedNext === "delivered");
 
@@ -215,6 +217,13 @@ export default function ShipmentDetailsScreen() {
         <Text style={styles.metaLine}>Dernier tracking: {formatDate(shipment.lastTrackingAt)}</Text>
         {shipment.deliveredAt ? <Text style={styles.metaLine}>Livre le: {formatDate(shipment.deliveredAt)}</Text> : null}
 
+        {!reservationAccepted ? (
+          <View style={styles.pendingBanner}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.dark.warning} />
+            <Text style={styles.pendingBannerText}>Demande en attente: echangez avec le proposeur avant validation.</Text>
+          </View>
+        ) : null}
+
         {paymentState?.verification?.smsStatus ? (
           <Text style={styles.metaLine}>SMS destinataire: {paymentState.verification.smsStatus}</Text>
         ) : null}
@@ -259,7 +268,7 @@ export default function ShipmentDetailsScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {shipment.status !== "delivered" && shipment.status !== "cancelled" ? (
+        {reservationAccepted && shipment.status !== "delivered" && shipment.status !== "cancelled" ? (
           <TouchableOpacity
             style={[styles.warningButton, openingIncident && styles.buttonDisabled]}
             onPress={handleOpenIncident}
@@ -457,6 +466,25 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "#0B1220",
     gap: 6,
+  },
+  pendingBanner: {
+    marginTop: 10,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: Colors.dark.warning,
+    borderRadius: 10,
+    backgroundColor: "#2A210B",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
+  pendingBannerText: {
+    flex: 1,
+    color: Colors.dark.warning,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: Fonts.sansSemiBold,
   },
   qrLabel: {
     fontSize: 12,

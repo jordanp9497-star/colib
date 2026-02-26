@@ -83,18 +83,18 @@ const styles = StyleSheet.create({
   empty: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#E2E8F0",
+    borderColor: "#243242",
+    backgroundColor: "#131C26",
     justifyContent: "center",
     padding: 14,
   },
   title: {
-    color: "#0F172A",
+    color: "#EAF0F6",
     fontWeight: "700",
     marginBottom: 4,
   },
   text: {
-    color: "#334155",
+    color: "#99A7B6",
     fontSize: 12,
   },
   parcelMarker: {

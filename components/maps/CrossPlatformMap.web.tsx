@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#E2E8F0",
+    borderColor: "#243242",
+    backgroundColor: "#131C26",
   },
 });

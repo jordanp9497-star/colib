@@ -101,6 +101,10 @@ export default function ActivityScreen() {
                 notification.matchId && shipments
                   ? shipments.find((shipment) => String(shipment.matchId) === String(notification.matchId))
                   : null;
+              const canOpenChat =
+                notification.type === "reservation_request" &&
+                notification.matchStatus === "requested" &&
+                Boolean(linkedShipment);
               const needsPayment = notification.type === "payment_required" && Boolean(linkedShipment);
 
               return (
@@ -128,7 +132,7 @@ export default function ActivityScreen() {
                     ...(linkedShipment
                       ? [
                           {
-                            label: "Voir suivi",
+                            label: canOpenChat ? "Messagerie" : "Voir suivi",
                             color: Colors.dark.warning,
                             textColor: "#1E293B",
                             onPress: () =>
@@ -171,7 +175,7 @@ export default function ActivityScreen() {
                           style={styles.trackButton}
                           onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment._id) } })}
                         >
-                          <Text style={styles.trackButtonText}>Voir suivi</Text>
+                          <Text style={styles.trackButtonText}>{canOpenChat ? "Ouvrir messagerie" : "Voir suivi"}</Text>
                         </TouchableOpacity>
                       ) : null}
 

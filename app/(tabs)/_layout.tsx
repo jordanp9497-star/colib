@@ -25,8 +25,8 @@ export default function TabLayout() {
           tabBarStyle: {
             backgroundColor: colors.card,
             borderTopColor: colors.border,
-            height: 68,
-            paddingTop: 6,
+            height: 64,
+            paddingTop: 4,
           },
           headerStyle: {
             backgroundColor: colors.card,
@@ -41,8 +41,8 @@ export default function TabLayout() {
             fontSize: 11,
           },
           tabBarItemStyle: {
-            borderRadius: 10,
-            marginHorizontal: 4,
+            borderRadius: 8,
+            marginHorizontal: 2,
           },
         }}
       >
@@ -52,7 +52,6 @@ export default function TabLayout() {
             title: "Accueil",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
                 <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
               </View>
             ),
@@ -64,7 +63,6 @@ export default function TabLayout() {
             title: "Publier",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
                 <Ionicons name={focused ? "add-circle" : "add-circle-outline"} size={size} color={color} />
               </View>
             ),
@@ -76,7 +74,6 @@ export default function TabLayout() {
             title: "Activite",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
                 <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={color} />
               </View>
             ),
@@ -88,7 +85,6 @@ export default function TabLayout() {
             title: "Profil",
             tabBarIcon: ({ color, size, focused }) => (
               <View style={styles.tabIconWrap}>
-                <View style={[styles.tabIndicator, focused && styles.tabIndicatorActive]} />
                 <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
               </View>
             ),
@@ -115,16 +111,6 @@ const styles = StyleSheet.create({
   tabIconWrap: {
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 3,
-    gap: 5,
-  },
-  tabIndicator: {
-    width: 30,
-    height: 3,
-    borderRadius: 99,
-    backgroundColor: "transparent",
-  },
-  tabIndicatorActive: {
-    backgroundColor: Colors.dark.primary,
+    paddingTop: 2,
   },
 });

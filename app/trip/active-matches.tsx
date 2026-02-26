@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { useActiveTrip } from "@/context/ActiveTripContext";
+import { Colors, Fonts } from "@/constants/theme";
 
 export default function ActiveTripMatchesScreen() {
   const { userId } = useUser();
@@ -37,7 +38,7 @@ export default function ActiveTripMatchesScreen() {
   if (matches === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4338CA" />
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
       </View>
     );
   }
@@ -48,7 +49,7 @@ export default function ActiveTripMatchesScreen() {
         style={styles.backButton}
         onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
       >
-        <Ionicons name="arrow-back" size={16} color="#334155" />
+        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
         <Text style={styles.backButtonText}>Retour</Text>
       </TouchableOpacity>
 
@@ -93,7 +94,7 @@ export default function ActiveTripMatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
     padding: 16,
     paddingTop: 56,
   },
@@ -103,20 +104,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
+    borderColor: Colors.dark.border,
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginBottom: 8,
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surface,
   },
-  backButtonText: { fontSize: 12, fontWeight: "700", color: "#334155" },
-  title: { fontSize: 24, fontWeight: "700", color: "#0F172A" },
+  backButtonText: { fontSize: 12, fontFamily: Fonts.sansSemiBold, color: Colors.dark.textSecondary },
+  title: { fontSize: 24, fontFamily: Fonts.displaySemiBold, color: Colors.dark.text },
   subtitle: {
     marginTop: 4,
     marginBottom: 12,
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   list: {
     gap: 10,
@@ -125,53 +127,56 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#161D24",
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
     padding: 12,
   },
   pickup: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontFamily: Fonts.sansSemiBold,
+    color: Colors.dark.text,
   },
   drop: {
     marginTop: 2,
     fontSize: 13,
-    color: "#334155",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   meta: {
     marginTop: 6,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
     fontSize: 12,
+    fontFamily: Fonts.sans,
   },
   cta: {
     marginTop: 8,
-    color: "#4338CA",
-    fontWeight: "700",
+    color: Colors.dark.primary,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 13,
   },
   emptyCard: {
     marginTop: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#161D24",
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surface,
     padding: 14,
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#0F172A",
+    fontFamily: Fonts.sansSemiBold,
+    color: Colors.dark.text,
   },
   emptyText: {
     marginTop: 6,
     fontSize: 13,
-    color: "#64748B",
+    color: Colors.dark.textSecondary,
+    fontFamily: Fonts.sans,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
 });

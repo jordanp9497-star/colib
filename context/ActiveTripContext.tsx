@@ -75,11 +75,14 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
   const startTripMutation = useMutation((api as any).tripSessions.start);
   const stopTripMutation = useMutation((api as any).tripSessions.stop);
   const pushLocation = useMutation((api as any).tripSessions.pushLocation);
+  const notificationsFeed = useQuery((api as any).notifications.listForUser, { userId }) as any[] | undefined;
 
   const [localFallback, setLocalFallback] = useState<ActiveSessionSnapshot | null>(null);
   const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const lastPushedLocationRef = useRef<LocationPoint | null>(null);
   const isPushingRef = useRef(false);
+  const pushBootTsRef = useRef(Date.now());
+  const pushedNotificationIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!SecureStore) return;
@@ -151,9 +154,16 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
-      const tripSessionId = response.notification.request.content.data?.tripSessionId;
+      const data = response.notification.request.content.data;
+      const tripSessionId = data?.tripSessionId;
       if (typeof tripSessionId === "string") {
         router.push({ pathname: "/trip/active-matches", params: { tripSessionId } } as any);
+        return;
+      }
+
+      const kind = data?.kind;
+      if (kind === "reservation_request") {
+        router.push("/(tabs)/activity" as any);
       }
     });
 
@@ -161,6 +171,36 @@ export function ActiveTripProvider({ children }: { children: React.ReactNode }) 
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || !notificationsFeed) {
+      return;
+    }
+
+    for (const notification of notificationsFeed) {
+      if (
+        notification.type !== "reservation_request" ||
+        notification.readAt ||
+        notification.createdAt < pushBootTsRef.current ||
+        pushedNotificationIdsRef.current.has(String(notification._id))
+      ) {
+        continue;
+      }
+
+      pushedNotificationIdsRef.current.add(String(notification._id));
+      void Notifications.scheduleNotificationAsync({
+        content: {
+          title: notification.title,
+          body: notification.message,
+          data: {
+            kind: "reservation_request",
+            matchId: notification.matchId ? String(notification.matchId) : undefined,
+          },
+        },
+        trigger: null,
+      });
+    }
+  }, [notificationsFeed]);
 
   useEffect(() => {
     let mounted = true;
