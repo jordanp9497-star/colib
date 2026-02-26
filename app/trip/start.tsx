@@ -13,8 +13,9 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Location from "expo-location";
-import { Ionicons } from "@expo/vector-icons";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { useActiveTrip } from "@/context/ActiveTripContext";
 import { Colors, Fonts } from "@/constants/theme";
@@ -187,13 +188,7 @@ export default function StartTripScreen() {
         nestedScrollEnabled
         scrollEventThrottle={16}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-        >
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
         <Text style={styles.title}>Demarrer un trajet</Text>
         <Text style={styles.subtitle}>
@@ -239,13 +234,13 @@ export default function StartTripScreen() {
           ))}
         </View>
 
-        <View style={styles.toggleRow}>
+        <SurfaceCard style={styles.toggleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.toggleTitle}>Recevoir des opportunites pendant la conduite</Text>
             <Text style={styles.toggleHint}>Active les permissions notif + localisation arriere-plan.</Text>
           </View>
           <Switch value={opportunitiesEnabled} onValueChange={setOpportunitiesEnabled} trackColor={{ true: Colors.dark.primary }} />
-        </View>
+        </SurfaceCard>
 
         <Text style={styles.permissionsText}>
           En demarrant, Colib peut utiliser votre localisation en arriere-plan pour detecter des colis compatibles. Vous pouvez arreter le trajet a tout moment.
@@ -266,20 +261,6 @@ export default function StartTripScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark.background },
   content: { padding: 20, paddingTop: 58, paddingBottom: 40, gap: 10 },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 6,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   title: { fontSize: 24, color: Colors.dark.text, fontFamily: Fonts.displaySemiBold },
   subtitle: { marginTop: -3, marginBottom: 8, color: Colors.dark.textSecondary, fontSize: 14, lineHeight: 20, fontFamily: Fonts.sans },
   label: { marginTop: 8, marginBottom: 4, color: Colors.dark.textSecondary, fontSize: 14, fontFamily: Fonts.sansSemiBold },
@@ -290,9 +271,9 @@ const styles = StyleSheet.create({
   },
   sliderStep: {
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: Colors.dark.surfaceMuted,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -310,10 +291,6 @@ const styles = StyleSheet.create({
   },
   toggleRow: {
     marginTop: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
     padding: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -330,13 +307,15 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 8,
     borderRadius: 12,
-    paddingVertical: 13,
+    minHeight: 46,
+    paddingVertical: 11,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.dark.primary,
   },
   buttonDisabled: {
-    backgroundColor: "#475467",
+    backgroundColor: Colors.dark.surfaceMuted,
+    opacity: 0.7,
   },
   buttonText: {
     color: Colors.dark.text,

@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { ActionButton } from "@/components/ui/action-button";
 import { useUser } from "@/context/UserContext";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import { formatShortAddress } from "@/utils/address";
 import { Colors, Fonts } from "@/constants/theme";
 
@@ -30,7 +33,7 @@ export default function ParcelDetailsScreen() {
   if (parcel === undefined || matches === undefined || myTrips === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4338CA" />
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
       </View>
     );
   }
@@ -94,42 +97,36 @@ export default function ParcelDetailsScreen() {
       nestedScrollEnabled
       scrollEventThrottle={16}
     >
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-      >
-        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Retour</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
       <Text style={styles.title}>Annonce colis</Text>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Itineraire du colis</Text>
         <View style={styles.row}>
-          <Ionicons name="pin" size={16} color="#2563EB" />
+          <Ionicons name="pin" size={16} color={Colors.dark.primary} />
           <Text style={styles.label}>Recuperation</Text>
         </View>
         <Text style={styles.value}>{shortOrigin}</Text>
 
         <View style={styles.rowSpaced}>
           <View style={styles.row}>
-            <Ionicons name="flag" size={16} color="#16A34A" />
+            <Ionicons name="flag" size={16} color={Colors.dark.success} />
             <Text style={styles.label}>Livraison</Text>
           </View>
         </View>
         <Text style={styles.value}>{shortDestination}</Text>
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Publie par</Text>
         <View style={styles.row}>
           <Ionicons name="person-circle-outline" size={18} color={Colors.dark.textSecondary} />
           <Text style={styles.publisher}>{parcel.userName}</Text>
         </View>
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Description</Text>
         <Text style={styles.description}>{parcel.description || "Aucune description fournie."}</Text>
         <View style={styles.metaRow}>
@@ -138,22 +135,20 @@ export default function ParcelDetailsScreen() {
           {parcel.proposedPrice ? <Text style={styles.metaText}>Prix propose: {parcel.proposedPrice} EUR</Text> : null}
         </View>
         {parcel.parcelPhotoUrl ? <Image source={{ uri: parcel.parcelPhotoUrl }} style={styles.parcelPhoto} /> : null}
-      </View>
+      </SurfaceCard>
 
       {isOwner ? (
         <View style={styles.actionsRow}>
-          <TouchableOpacity
+          <ActionButton
+            label="Modifier l'annonce"
+            size="sm"
             style={styles.editButton}
             onPress={() => router.push({ pathname: "/(tabs)/send", params: { parcelId: String(parcel._id) } })}
-          >
-            <Text style={styles.editButtonText}>Modifier l&apos;annonce</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteParcel}>
-            <Text style={styles.deleteButtonText}>Supprimer l&apos;annonce</Text>
-          </TouchableOpacity>
+          />
+          <ActionButton label="Supprimer l'annonce" variant="danger" size="sm" style={styles.deleteButton} onPress={handleDeleteParcel} />
         </View>
       ) : (
-        <View style={styles.card}>
+        <SurfaceCard style={styles.card}>
           <Text style={styles.sectionTitle}>Reserver</Text>
           {!activeTrip ? (
             <Text style={styles.hint}>Publiez un trajet pour pouvoir reserver ce colis.</Text>
@@ -163,14 +158,16 @@ export default function ParcelDetailsScreen() {
             <Text style={styles.hint}>Ce colis est compatible avec votre trajet actif.</Text>
           )}
 
-          <TouchableOpacity
+          <ActionButton
+            label="Reserver"
+            variant="info"
+            size="sm"
+            loading={isReserving}
             style={[styles.reserveButton, (!canReserve || isReserving) && styles.reserveButtonDisabled]}
             onPress={handleReserve}
             disabled={!canReserve || isReserving}
-          >
-            {isReserving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.reserveButtonText}>Reserver</Text>}
-          </TouchableOpacity>
-        </View>
+          />
+        </SurfaceCard>
       )}
     </ScrollView>
   );
@@ -187,20 +184,6 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 10,
   },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 4,
-    backgroundColor: "#161D24",
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   title: {
     fontSize: 24,
     color: Colors.dark.text,
@@ -208,10 +191,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displaySemiBold,
   },
   card: {
-    backgroundColor: Colors.dark.surface,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 12,
     padding: 14,
   },
   sectionTitle: {
@@ -278,53 +257,26 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   reserveButton: {
-    backgroundColor: "#EA580C",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
+    minHeight: 42,
   },
   reserveButtonDisabled: {
-    backgroundColor: "#94A3B8",
-  },
-  reserveButtonText: {
-    color: Colors.dark.text,
-    fontSize: 15,
-    fontFamily: Fonts.sansSemiBold,
+    opacity: 0.5,
   },
   actionsRow: {
     marginTop: 2,
     gap: 10,
   },
   editButton: {
-    borderRadius: 10,
-    backgroundColor: "#2563EB",
-    paddingVertical: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  editButtonText: {
-    color: Colors.dark.text,
-    fontSize: 14,
-    fontFamily: Fonts.sansSemiBold,
+    minHeight: 42,
   },
   deleteButton: {
-    borderRadius: 10,
-    backgroundColor: "#B91C1C",
-    paddingVertical: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteButtonText: {
-    color: Colors.dark.text,
-    fontSize: 14,
-    fontFamily: Fonts.sansSemiBold,
+    minHeight: 42,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
   emptyTitle: {
     fontSize: 18,

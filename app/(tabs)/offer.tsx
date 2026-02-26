@@ -16,6 +16,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
+import { ActionButton } from "@/components/ui/action-button";
+import { BackButton } from "@/components/ui/back-button";
+import { ChoiceChip } from "@/components/ui/choice-chip";
 import type { GeocodedAddress } from "@/packages/shared/maps";
 import { buildDayWindowTimestamps, TimeWindowInput } from "@/components/forms/TimeWindowInput";
 import { Colors, Fonts } from "@/constants/theme";
@@ -223,8 +226,8 @@ export default function OfferScreen() {
         nestedScrollEnabled
         scrollEventThrottle={16}
       >
-        <TouchableOpacity
-          style={styles.backButton}
+        <BackButton
+          label={step === 1 ? "Retour" : "Etape precedente"}
           onPress={() =>
             step === 1
               ? router.canGoBack()
@@ -232,10 +235,7 @@ export default function OfferScreen() {
                 : router.replace("/(tabs)" as any)
               : setStep((prev) => prev - 1)
           }
-        >
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>{step === 1 ? "Retour" : "Etape precedente"}</Text>
-        </TouchableOpacity>
+        />
 
         <Text style={styles.header}>{isEditMode ? "Modifier mon trajet" : "Publier un trajet"}</Text>
 
@@ -285,7 +285,7 @@ export default function OfferScreen() {
                 <Ionicons name="navigate-outline" size={16} color={tripMode === "now" ? Colors.dark.text : Colors.dark.textSecondary} />
                 <View style={styles.modeCardContent}>
                   <Text style={[styles.modeCardTitle, tripMode === "now" && styles.modeCardTitleActive]}>Demarrer maintenant</Text>
-                  <Text style={styles.modeCardText}>Publier puis lancer Waze</Text>
+                  <Text style={styles.modeCardText}>Publiez puis lancez Waze</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -301,7 +301,7 @@ export default function OfferScreen() {
                 showSlots={false}
               />
             ) : (
-              <Text style={styles.modeHint}>Le trajet sera publie tout de suite. Vous pourrez ensuite le lancer dans Waze.</Text>
+              <Text style={styles.modeHint}>Le trajet est publie immediatement. Vous pouvez ensuite le lancer dans Waze.</Text>
             )}
           </>
         ) : null}
@@ -312,15 +312,12 @@ export default function OfferScreen() {
             <Text style={styles.label}>Espace disponible</Text>
             <View style={styles.row}>
               {(["petit", "moyen", "grand"] as const).map((value) => (
-                <TouchableOpacity
+                <ChoiceChip
                   key={value}
-                  style={[styles.chip, value === availableSpace && styles.chipActive]}
+                  label={value}
+                  active={value === availableSpace}
                   onPress={() => setAvailableSpace(value)}
-                >
-                  <Text style={[styles.chipText, value === availableSpace && styles.chipTextActive]}>
-                    {value}
-                  </Text>
-                </TouchableOpacity>
+                />
               ))}
             </View>
 
@@ -333,15 +330,12 @@ export default function OfferScreen() {
                 <Text style={styles.label}>Deviation max conducteur (min)</Text>
                 <View style={styles.row}>
                   {[10, 20, 30].map((minutes) => (
-                    <TouchableOpacity
+                    <ChoiceChip
                       key={minutes}
-                      style={[styles.chip, maxDetourMinutes === minutes && styles.chipActive]}
+                      label={String(minutes)}
+                      active={maxDetourMinutes === minutes}
                       onPress={() => setMaxDetourMinutes(minutes)}
-                    >
-                      <Text style={[styles.chipText, maxDetourMinutes === minutes && styles.chipTextActive]}>
-                        {minutes}
-                      </Text>
-                    </TouchableOpacity>
+                    />
                   ))}
                 </View>
 
@@ -372,26 +366,27 @@ export default function OfferScreen() {
         ) : null}
 
         {step < TOTAL_STEPS ? (
-          <TouchableOpacity
+          <ActionButton
+            label="Continuer"
             style={styles.button}
             onPress={() => {
               if (!validateStep(step)) return;
               setStep((prev) => prev + 1);
             }}
-          >
-            <Text style={styles.buttonText}>Continuer</Text>
-          </TouchableOpacity>
+          />
         ) : (
-          <TouchableOpacity style={styles.button} onPress={() => void publishTrip()}>
-            <Ionicons name={tripMode === "now" ? "navigate" : "car"} size={18} color={Colors.dark.text} />
-            <Text style={styles.buttonText}>
-              {isEditMode
+          <ActionButton
+            label={
+              isEditMode
                 ? "Mettre a jour"
                 : tripMode === "now"
                   ? "Publier et demarrer dans Waze"
-                  : "Publier le trajet"}
-            </Text>
-          </TouchableOpacity>
+                  : "Publier le trajet"
+            }
+            style={styles.button}
+            iconLeft={<Ionicons name={tripMode === "now" ? "navigate" : "car"} size={18} color={Colors.dark.text} />}
+            onPress={() => void publishTrip()}
+          />
         )}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -406,7 +401,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     marginTop: 6,
     marginBottom: 14,
-    height: 4,
+    height: 3,
     borderRadius: 999,
     backgroundColor: Colors.dark.border,
     overflow: "hidden",
@@ -418,9 +413,9 @@ const styles = StyleSheet.create({
   stepTitle: { fontSize: 16, color: Colors.dark.text, marginBottom: 10, fontFamily: Fonts.displaySemiBold },
   label: { marginTop: 10, marginBottom: 6, fontSize: 14, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   input: {
-    backgroundColor: Colors.dark.surface,
+    backgroundColor: Colors.dark.surfaceMuted,
     borderColor: Colors.dark.border,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -429,47 +424,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   row: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  chip: {
-    borderRadius: 999,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  chipActive: { backgroundColor: Colors.dark.primary, borderColor: Colors.dark.primary },
-  chipText: { color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
-  chipTextActive: { color: Colors.dark.text },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   advancedToggle: { marginTop: 10, alignSelf: "flex-start" },
   advancedToggleText: { color: Colors.dark.primary, fontSize: 13, fontFamily: Fonts.sansSemiBold },
-  button: {
-    marginTop: 20,
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 10,
-    paddingVertical: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  buttonText: { color: Colors.dark.text, fontSize: 15, fontFamily: Fonts.sansSemiBold },
+  button: { marginTop: 20 },
   summaryCard: {
     borderRadius: 10,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
     padding: 12,
     gap: 6,
@@ -480,8 +440,7 @@ const styles = StyleSheet.create({
   },
   modeCard: {
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
     paddingVertical: 11,
     paddingHorizontal: 12,

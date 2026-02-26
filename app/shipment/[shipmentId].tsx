@@ -6,14 +6,16 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
+import { ActionButton } from "@/components/ui/action-button";
 import { useUser } from "@/context/UserContext";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import { Colors, Fonts } from "@/constants/theme";
 
 const NEXT_STATUS: Record<string, string | null> = {
@@ -94,7 +96,7 @@ export default function ShipmentDetailsScreen() {
   if (shipment === undefined || timeline === undefined || live === undefined || messages === undefined || paymentState === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color={Colors.dark.primary} />
       </View>
     );
   }
@@ -186,24 +188,18 @@ export default function ShipmentDetailsScreen() {
       nestedScrollEnabled
       scrollEventThrottle={16}
     >
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-      >
-        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Retour</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
       <Text style={styles.title}>Suivi du transport</Text>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Etat actuel</Text>
         <View style={styles.row}>
-          <Ionicons name="cube-outline" size={16} color="#2563EB" />
+          <Ionicons name="cube-outline" size={16} color={Colors.dark.primary} />
           <Text style={styles.value}>{STATUS_LABELS[shipment.status] ?? shipment.status}</Text>
         </View>
         <View style={styles.row}>
-          <Ionicons name="wallet-outline" size={16} color="#0EA5E9" />
+          <Ionicons name="wallet-outline" size={16} color={Colors.dark.info} />
           <Text style={styles.value}>Paiement: {PAYMENT_LABELS[shipment.paymentStatus] ?? shipment.paymentStatus}</Text>
         </View>
         <Text style={styles.metaLine}>
@@ -232,9 +228,7 @@ export default function ShipmentDetailsScreen() {
         ) : null}
 
         {paymentState?.canPay ? (
-          <TouchableOpacity style={styles.payButton} onPress={handlePayAndBlockFunds}>
-            <Text style={styles.primaryButtonText}>Payer et bloquer les fonds</Text>
-          </TouchableOpacity>
+          <ActionButton label="Payer et bloquer les fonds" variant="success" size="sm" style={styles.payButton} onPress={handlePayAndBlockFunds} />
         ) : null}
 
         {role === "customer" && paymentState?.verification?.qrPayload ? (
@@ -245,45 +239,40 @@ export default function ShipmentDetailsScreen() {
         ) : null}
 
         {paymentState?.canScanQr ? (
-          <TouchableOpacity
+          <ActionButton
+            label="Scanner le QR de remise"
+            variant="info"
+            size="sm"
             style={styles.scanButton}
+            iconLeft={<Ionicons name="scan-outline" size={16} color={Colors.dark.text} />}
             onPress={() => router.push({ pathname: "/shipment-scan" as any, params: { shipmentId: String(shipment._id) } })}
-          >
-            <Ionicons name="scan-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.warningButtonText}>Scanner le QR de remise</Text>
-          </TouchableOpacity>
+          />
         ) : null}
 
         {canAdvance ? (
-          <TouchableOpacity
-            style={[styles.primaryButton, updatingStatus && styles.buttonDisabled]}
-            disabled={updatingStatus}
+          <ActionButton
+            label={`Passer a ${suggestedNextLabel}`}
+            variant="primary"
+            size="sm"
+            loading={updatingStatus}
+            style={styles.primaryButton}
             onPress={handleAdvanceStatus}
-          >
-            {updatingStatus ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Passer a {suggestedNextLabel}</Text>
-            )}
-          </TouchableOpacity>
+          />
         ) : null}
 
         {reservationAccepted && shipment.status !== "delivered" && shipment.status !== "cancelled" ? (
-          <TouchableOpacity
-            style={[styles.warningButton, openingIncident && styles.buttonDisabled]}
+          <ActionButton
+            label="Signaler un incident"
+            variant="danger"
+            size="sm"
+            loading={openingIncident}
+            style={styles.warningButton}
             onPress={handleOpenIncident}
-            disabled={openingIncident}
-          >
-            {openingIncident ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.warningButtonText}>Signaler un incident</Text>
-            )}
-          </TouchableOpacity>
+          />
         ) : null}
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Tracking en temps reel</Text>
         {live?.latest ? (
           <>
@@ -294,9 +283,9 @@ export default function ShipmentDetailsScreen() {
         ) : (
           <Text style={styles.emptyText}>Aucun point GPS recu pour le moment.</Text>
         )}
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Timeline</Text>
         {timeline.events.length === 0 ? (
           <Text style={styles.emptyText}>Aucun evenement.</Text>
@@ -308,9 +297,9 @@ export default function ShipmentDetailsScreen() {
             </View>
           ))
         )}
-      </View>
+      </SurfaceCard>
 
-      <View style={styles.card}>
+      <SurfaceCard style={styles.card}>
         <Text style={styles.sectionTitle}>Messagerie securisee</Text>
         {messages.length === 0 ? <Text style={styles.emptyText}>Aucun message.</Text> : null}
         {messages.map((msg) => (
@@ -332,23 +321,21 @@ export default function ShipmentDetailsScreen() {
             value={messageDraft}
             onChangeText={setMessageDraft}
             placeholder="Ecrire un message"
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor={Colors.dark.textSecondary}
             style={styles.input}
             multiline
           />
-          <TouchableOpacity
-            style={[styles.sendButton, sendingMessage && styles.buttonDisabled]}
-            disabled={sendingMessage}
+          <ActionButton
+            label=""
+            variant="info"
+            size="sm"
+            loading={sendingMessage}
+            style={styles.sendButton}
+            iconLeft={<Ionicons name="send" size={16} color={Colors.dark.text} />}
             onPress={handleSendMessage}
-          >
-            {sendingMessage ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Ionicons name="send" size={16} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
+          />
         </View>
-      </View>
+      </SurfaceCard>
     </ScrollView>
   );
 }
@@ -364,25 +351,11 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 12,
   },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 4,
-    backgroundColor: "#161D24",
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0F141A",
+    backgroundColor: Colors.dark.background,
   },
   title: {
     fontSize: 24,
@@ -391,10 +364,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displaySemiBold,
   },
   card: {
-    backgroundColor: Colors.dark.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
     padding: 14,
   },
   sectionTitle: {
@@ -421,50 +390,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: Fonts.sans,
   },
-  primaryButton: {
-    marginTop: 8,
-    backgroundColor: "#2563EB",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: Colors.dark.text,
-    fontSize: 13,
-    textTransform: "capitalize",
-    fontFamily: Fonts.sansSemiBold,
-  },
-  warningButton: {
-    marginTop: 8,
-    backgroundColor: "#DC2626",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  payButton: {
-    marginTop: 8,
-    backgroundColor: "#059669",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  scanButton: {
-    marginTop: 8,
-    backgroundColor: "#0EA5E9",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
+  primaryButton: { marginTop: 8 },
+  warningButton: { marginTop: 8 },
+  payButton: { marginTop: 8 },
+  scanButton: { marginTop: 8 },
   qrBlock: {
     marginTop: 10,
     borderWidth: 1,
     borderColor: Colors.dark.border,
     borderRadius: 10,
     padding: 10,
-    backgroundColor: "#0B1220",
+    backgroundColor: Colors.dark.surfaceMuted,
     gap: 6,
   },
   pendingBanner: {
@@ -475,7 +411,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.dark.warning,
     borderRadius: 10,
-    backgroundColor: "#2A210B",
+    backgroundColor: Colors.dark.surfaceMuted,
     paddingVertical: 10,
     paddingHorizontal: 10,
   },
@@ -495,14 +431,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.dark.text,
     fontFamily: Fonts.sansSemiBold,
-  },
-  warningButtonText: {
-    color: Colors.dark.text,
-    fontSize: 13,
-    fontFamily: Fonts.sansSemiBold,
-  },
-  buttonDisabled: {
-    opacity: 0.65,
   },
   emptyTitle: {
     fontSize: 18,
@@ -573,9 +501,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     maxHeight: 120,
-    backgroundColor: "#161D24",
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 0,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -585,10 +512,7 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#0EA5E9",
-    alignItems: "center",
-    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 0,
   },
 });

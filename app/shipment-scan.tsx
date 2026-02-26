@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Ionicons } from "@expo/vector-icons";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import { Colors, Fonts } from "@/constants/theme";
 
 export default function ShipmentScanScreen() {
@@ -69,10 +70,7 @@ export default function ShipmentScanScreen() {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} />
 
         <Text style={styles.title}>Scanner QR de remise</Text>
         <Text style={styles.subtitle}>Scannez le QR affiche sur le telephone du destinataire pour debloquer le paiement.</Text>
@@ -98,15 +96,15 @@ export default function ShipmentScanScreen() {
             </View>
           </View>
         ) : (
-          <View style={styles.permissionCard}>
+          <SurfaceCard style={styles.permissionCard}>
             <Text style={styles.permissionText}>Autorisez la camera pour scanner automatiquement le QR.</Text>
             <TouchableOpacity style={styles.permissionButton} onPress={() => void requestPermission()}>
               <Text style={styles.permissionButtonText}>Activer la camera</Text>
             </TouchableOpacity>
-          </View>
+          </SurfaceCard>
         )}
 
-        <View style={styles.manualBlock}>
+        <SurfaceCard style={styles.manualBlock}>
           <Text style={styles.manualTitle}>Plan B</Text>
           <Text style={styles.manualText}>Si le scan bloque, collez la valeur brute du QR.</Text>
           <TextInput
@@ -124,7 +122,7 @@ export default function ShipmentScanScreen() {
           >
             {isSubmitting ? <ActivityIndicator color={Colors.dark.text} size="small" /> : <Text style={styles.submitText}>Valider le QR</Text>}
           </TouchableOpacity>
-        </View>
+        </SurfaceCard>
       </View>
     </KeyboardAvoidingView>
   );
@@ -141,23 +139,6 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 24,
     gap: 12,
-  },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: {
-    fontSize: 12,
-    color: Colors.dark.textSecondary,
-    fontFamily: Fonts.sansSemiBold,
   },
   title: {
     fontSize: 24,
@@ -176,7 +157,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: Colors.dark.border,
-    backgroundColor: "#050A12",
+    backgroundColor: Colors.dark.canvas,
   },
   camera: {
     flex: 1,
@@ -204,10 +185,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.surface,
   },
   permissionCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
     padding: 14,
     gap: 8,
   },
@@ -229,10 +206,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
   },
   manualBlock: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
     padding: 12,
     gap: 8,
   },
@@ -248,8 +221,8 @@ const styles = StyleSheet.create({
   },
   input: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
+    borderColor: "transparent",
     backgroundColor: Colors.dark.surfaceMuted,
     color: Colors.dark.text,
     paddingHorizontal: 12,
@@ -258,7 +231,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     borderRadius: 10,
-    backgroundColor: "#0EA5E9",
+    backgroundColor: Colors.dark.info,
     minHeight: 42,
     alignItems: "center",
     justifyContent: "center",

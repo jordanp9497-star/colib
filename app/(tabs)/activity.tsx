@@ -1,10 +1,13 @@
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
+import { ActionButton } from "@/components/ui/action-button";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import { Colors, Fonts } from "@/constants/theme";
 
 function formatRelativeDate(timestamp: number) {
@@ -64,13 +67,7 @@ export default function ActivityScreen() {
       scrollEventThrottle={16}
     >
       {router.canGoBack() ? (
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-        >
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
       ) : null}
 
       <Text style={styles.title}>Activite</Text>
@@ -81,11 +78,11 @@ export default function ActivityScreen() {
           <ActivityIndicator size="small" color={Colors.dark.primary} />
         </View>
       ) : list.length === 0 ? (
-        <View style={styles.emptyCard}>
+        <SurfaceCard style={styles.emptyCard}>
           <Ionicons name="notifications-off-outline" size={18} color={Colors.dark.textSecondary} />
           <Text style={styles.emptyTitle}>Aucune action a traiter</Text>
           <Text style={styles.emptyText}>Vous recevrez ici les demandes de reservation et les updates de suivi.</Text>
-        </View>
+        </SurfaceCard>
       ) : (
         <>
           <Text style={styles.sectionTitle}>A traiter ({pendingNotifications.length})</Text>
@@ -134,7 +131,7 @@ export default function ActivityScreen() {
                           {
                             label: canOpenChat ? "Messagerie" : "Voir suivi",
                             color: Colors.dark.warning,
-                            textColor: "#1E293B",
+                            textColor: Colors.dark.background,
                             onPress: () =>
                               router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment._id) } }),
                           },
@@ -152,7 +149,7 @@ export default function ActivityScreen() {
                       : []),
                   ]}
                 >
-                  <View style={[styles.card, !notification.readAt && styles.cardUnread]}>
+                  <SurfaceCard style={[styles.card, !notification.readAt && styles.cardUnread]}>
                     <View style={styles.cardMetaRow}>
                       <Text style={styles.cardTitle}>{notification.title}</Text>
                       {!notification.readAt ? <Text style={styles.unreadBadge}>Non lu</Text> : null}
@@ -162,39 +159,46 @@ export default function ActivityScreen() {
 
                     <View style={styles.actionsRow}>
                       {canAcceptReservation ? (
-                        <TouchableOpacity
+                        <ActionButton
+                          label="Accepter"
+                          variant="success"
+                          size="sm"
                           style={styles.acceptButton}
                           onPress={() => void handleAcceptReservation(String(notification.matchId))}
-                        >
-                          <Text style={styles.acceptButtonText}>Accepter</Text>
-                        </TouchableOpacity>
+                        />
                       ) : null}
 
                       {linkedShipment ? (
-                        <TouchableOpacity
+                        <ActionButton
+                          label={canOpenChat ? "Ouvrir messagerie" : "Voir suivi"}
+                          variant="primary"
+                          size="sm"
                           style={styles.trackButton}
                           onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment._id) } })}
-                        >
-                          <Text style={styles.trackButtonText}>{canOpenChat ? "Ouvrir messagerie" : "Voir suivi"}</Text>
-                        </TouchableOpacity>
+                        />
                       ) : null}
 
                       {needsPayment ? (
-                        <TouchableOpacity
+                        <ActionButton
+                          label="Payer maintenant"
+                          variant="success"
+                          size="sm"
                           style={styles.acceptButton}
                           onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment?._id) } })}
-                        >
-                          <Text style={styles.acceptButtonText}>Payer maintenant</Text>
-                        </TouchableOpacity>
+                        />
                       ) : null}
 
                       {!notification.readAt ? (
-                        <TouchableOpacity style={styles.readButton} onPress={() => void handleMarkRead(String(notification._id))}>
-                          <Text style={styles.readButtonText}>Marquer lu</Text>
-                        </TouchableOpacity>
+                        <ActionButton
+                          label="Marquer lu"
+                          variant="secondary"
+                          size="sm"
+                          style={styles.readButton}
+                          onPress={() => void handleMarkRead(String(notification._id))}
+                        />
                       ) : null}
                     </View>
-                  </View>
+                  </SurfaceCard>
                 </SwipeActionRow>
               );
             })
@@ -211,21 +215,22 @@ export default function ActivityScreen() {
                   : null;
 
               return (
-                <View key={notification._id} style={styles.card}>
+                <SurfaceCard key={notification._id} style={styles.card}>
                   <View style={styles.cardMetaRow}>
                     <Text style={styles.cardTitle}>{notification.title}</Text>
                     <Text style={styles.relativeDate}>{formatRelativeDate(notification.createdAt)}</Text>
                   </View>
                   <Text style={styles.cardText}>{notification.message}</Text>
                   {linkedShipment ? (
-                    <TouchableOpacity
+                    <ActionButton
+                      label="Ouvrir suivi"
+                      variant="primary"
+                      size="sm"
                       style={[styles.trackButton, styles.historyTrackButton]}
                       onPress={() => router.push({ pathname: "/shipment/[shipmentId]", params: { shipmentId: String(linkedShipment._id) } })}
-                    >
-                      <Text style={styles.trackButtonText}>Ouvrir suivi</Text>
-                    </TouchableOpacity>
+                    />
                   ) : null}
-                </View>
+                </SurfaceCard>
               );
             })
           )}
@@ -244,7 +249,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 24,
-    gap: 10,
+    gap: 12,
   },
   title: {
     fontSize: 24,
@@ -274,30 +279,11 @@ const styles = StyleSheet.create({
     marginTop: 24,
     alignItems: "center",
   },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 2,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
     padding: 12,
   },
   cardUnread: {
-    borderColor: Colors.dark.primary,
-    backgroundColor: Colors.dark.primaryLight,
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   cardMetaRow: {
     flexDirection: "row",
@@ -338,50 +324,14 @@ const styles = StyleSheet.create({
     gap: 8,
     flexWrap: "wrap",
   },
-  acceptButton: {
-    borderRadius: 8,
-    backgroundColor: Colors.dark.success,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  acceptButtonText: {
-    color: Colors.dark.text,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  trackButton: {
-    borderRadius: 8,
-    backgroundColor: Colors.dark.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
+  acceptButton: {},
+  trackButton: {},
   historyTrackButton: {
     marginTop: 10,
     alignSelf: "flex-start",
   },
-  trackButtonText: {
-    color: Colors.dark.text,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  readButton: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surfaceMuted,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  readButtonText: {
-    color: Colors.dark.text,
-    fontSize: 12,
-    fontWeight: "700",
-  },
+  readButton: {},
   emptyCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: Colors.dark.surface,
     padding: 14,
     alignItems: "flex-start",
     gap: 6,

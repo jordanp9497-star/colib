@@ -19,6 +19,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { AddressAutocompleteInput } from "@/components/maps/AddressAutocompleteInput";
+import { ActionButton } from "@/components/ui/action-button";
+import { BackButton } from "@/components/ui/back-button";
+import { ChoiceChip } from "@/components/ui/choice-chip";
 import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
 import { computeDynamicPrice } from "@/packages/shared/pricing";
 import { distancePointToSegmentKm } from "@/packages/shared/tripSessionMatching";
@@ -294,7 +297,7 @@ export default function SendScreen() {
     }
     const localPhone = onlyDigits(recipientPhoneLocal);
     if (value === 1 && !/^\d{10}$/.test(localPhone)) {
-      Alert.alert("Numero invalide", "Saisissez 10 chiffres et choisissez l indicatif pays.");
+      Alert.alert("Numero invalide", "Saisissez 10 chiffres puis verifiez l indicatif pays.");
       return false;
     }
     if (value === 2 && !buildWindowTimestamps(shippingDate, shippingSlot)) {
@@ -448,8 +451,8 @@ export default function SendScreen() {
         nestedScrollEnabled
         scrollEventThrottle={16}
       >
-        <TouchableOpacity
-          style={styles.backButton}
+        <BackButton
+          label={step === 1 ? "Retour" : "Etape precedente"}
           onPress={() =>
             step === 1
               ? router.canGoBack()
@@ -457,10 +460,7 @@ export default function SendScreen() {
                 : router.replace("/(tabs)" as any)
               : setStep((prev) => prev - 1)
           }
-        >
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>{step === 1 ? "Retour" : "Etape precedente"}</Text>
-        </TouchableOpacity>
+        />
 
         <Text style={styles.header}>
           {isEditMode ? "Modifier mon colis" : isProposalMode ? "Proposer un colis" : "Publier un colis"}
@@ -470,7 +470,7 @@ export default function SendScreen() {
           <View style={styles.proposalBanner}>
             <Ionicons name="paper-plane-outline" size={16} color={Colors.dark.info} />
             <View style={styles.proposalBannerContent}>
-              <Text style={styles.proposalBannerTitle}>Proposition pour un trajet selectionne</Text>
+             <Text style={styles.proposalBannerTitle}>Proposition liee a un trajet selectionne</Text>
               <Text style={styles.proposalBannerText} numberOfLines={2}>
                 {proposalTrip.origin} {" -> "} {proposalTrip.destination}
               </Text>
@@ -546,10 +546,12 @@ export default function SendScreen() {
               ) : null}
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={() => void handlePublish()}>
-              <Ionicons name="paper-plane-outline" size={18} color={Colors.dark.text} />
-              <Text style={styles.buttonText}>Envoyer la demande</Text>
-            </TouchableOpacity>
+            <ActionButton
+              label="Envoyer la demande"
+              style={styles.button}
+              iconLeft={<Ionicons name="paper-plane-outline" size={18} color={Colors.dark.text} />}
+              onPress={() => void handlePublish()}
+            />
           </>
         ) : null}
 
@@ -611,13 +613,12 @@ export default function SendScreen() {
             <Text style={styles.label}>Taille</Text>
             <View style={styles.row}>
               {(["petit", "moyen", "grand"] as const).map((value) => (
-                <TouchableOpacity
+                <ChoiceChip
                   key={value}
+                  label={value}
+                  active={size === value}
                   onPress={() => setSize(value)}
-                  style={[styles.chip, size === value && styles.chipActive]}
-                >
-                  <Text style={[styles.chipText, size === value && styles.chipTextActive]}>{value}</Text>
-                </TouchableOpacity>
+                />
               ))}
             </View>
 
@@ -630,7 +631,7 @@ export default function SendScreen() {
               value={description}
               onChangeText={setDescription}
               placeholder="Contenu, fragilite, instructions..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={Colors.dark.textSecondary}
               multiline
             />
 
@@ -743,20 +744,21 @@ export default function SendScreen() {
         ) : null}
 
         {!isProposalMode && step < TOTAL_STEPS ? (
-          <TouchableOpacity
+          <ActionButton
+            label="Continuer"
             style={styles.button}
             onPress={() => {
               if (!validateStep(step)) return;
               setStep((prev) => prev + 1);
             }}
-          >
-            <Text style={styles.buttonText}>Continuer</Text>
-          </TouchableOpacity>
+          />
         ) : !isProposalMode ? (
-          <TouchableOpacity style={styles.button} onPress={() => void handlePublish()}>
-            <Ionicons name="cube" size={18} color={Colors.dark.text} />
-            <Text style={styles.buttonText}>{isEditMode ? "Mettre a jour" : proposalTripId ? "Envoyer la demande" : "Publier"}</Text>
-          </TouchableOpacity>
+          <ActionButton
+            label={isEditMode ? "Mettre a jour" : proposalTripId ? "Envoyer la demande" : "Publier"}
+            style={styles.button}
+            iconLeft={<Ionicons name="cube" size={18} color={Colors.dark.text} />}
+            onPress={() => void handlePublish()}
+          />
         ) : null}
       </ScrollView>
 
@@ -777,9 +779,7 @@ export default function SendScreen() {
                 <Text style={styles.modalOptionCode}>{entry.code}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowPrefixPicker(false)}>
-              <Text style={styles.modalCloseText}>Fermer</Text>
-            </TouchableOpacity>
+            <ActionButton label="Fermer" size="sm" style={styles.modalCloseButton} onPress={() => setShowPrefixPicker(false)} />
           </View>
         </View>
       </Modal>
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
   progressTrack: {
     marginTop: 6,
     marginBottom: 14,
-    height: 4,
+    height: 3,
     borderRadius: 999,
     backgroundColor: Colors.dark.border,
     overflow: "hidden",
@@ -808,8 +808,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: Colors.dark.textSecondary, marginBottom: 6, marginTop: 10, fontFamily: Fonts.sansSemiBold },
   readonlyCard: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surfaceMuted,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -820,9 +819,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
   },
   input: {
-    backgroundColor: Colors.dark.surface,
+    backgroundColor: Colors.dark.surfaceMuted,
     borderColor: Colors.dark.border,
-    borderWidth: 1,
+    borderWidth: 0,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -859,9 +858,8 @@ const styles = StyleSheet.create({
   proposalBanner: {
     marginBottom: 12,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.info,
-    backgroundColor: "rgba(37, 99, 235, 0.14)",
+    borderWidth: 0,
+    backgroundColor: "rgba(37, 99, 235, 0.11)",
     paddingHorizontal: 10,
     paddingVertical: 9,
     flexDirection: "row",
@@ -890,8 +888,7 @@ const styles = StyleSheet.create({
   },
   photoActionButton: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surfaceMuted,
     paddingVertical: 9,
     paddingHorizontal: 12,
@@ -922,8 +919,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 12,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     position: "relative",
     backgroundColor: Colors.dark.surfaceMuted,
   },
@@ -944,47 +940,12 @@ const styles = StyleSheet.create({
   },
   textArea: { minHeight: 80, textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 8 },
-  chip: {
-    borderRadius: 999,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-  },
-  chipActive: { backgroundColor: Colors.dark.primary, borderColor: Colors.dark.primary },
-  chipText: { color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
-  chipTextActive: { color: Colors.dark.text },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   advancedToggle: { marginTop: 10, alignSelf: "flex-start" },
   advancedToggleText: { color: Colors.dark.primary, fontSize: 13, fontFamily: Fonts.sansSemiBold },
-  button: {
-    marginTop: 20,
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 10,
-    paddingVertical: 13,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  buttonText: { color: Colors.dark.text, fontSize: 15, fontFamily: Fonts.sansSemiBold },
+  button: { marginTop: 20 },
   summaryCard: {
     borderRadius: 10,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
     padding: 12,
     gap: 6,
@@ -993,8 +954,7 @@ const styles = StyleSheet.create({
   proposalSummaryCard: {
     marginTop: 12,
     borderRadius: 10,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
     padding: 12,
     gap: 6,
@@ -1030,8 +990,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
     padding: 14,
     gap: 8,
@@ -1044,8 +1003,7 @@ const styles = StyleSheet.create({
   },
   modalOption: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surfaceMuted,
     paddingVertical: 10,
     paddingHorizontal: 10,
@@ -1065,14 +1023,6 @@ const styles = StyleSheet.create({
   },
   modalCloseButton: {
     marginTop: 6,
-    borderRadius: 10,
-    backgroundColor: Colors.dark.primary,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  modalCloseText: {
-    color: Colors.dark.text,
-    fontSize: 13,
-    fontFamily: Fonts.sansSemiBold,
+    alignSelf: "stretch",
   },
 });

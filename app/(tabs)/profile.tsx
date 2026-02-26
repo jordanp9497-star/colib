@@ -26,6 +26,7 @@ import StarRating from "@/components/profile/StarRating";
 import VerificationBadge from "@/components/profile/VerificationBadge";
 import { pickImage, takePhoto, uploadToConvex } from "@/utils/uploadImage";
 import { SwipeActionRow } from "@/components/gestures/SwipeActionRow";
+import { ActionButton } from "@/components/ui/action-button";
 import { Colors, Fonts } from "@/constants/theme";
 import { isJordanAdminName } from "@/constants/admin";
 
@@ -70,7 +71,7 @@ function RegistrationFlow({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.avatarPlaceholder}>
-        <Ionicons name="person" size={48} color="#94A3B8" />
+        <Ionicons name="person" size={48} color={Colors.dark.textSecondary} />
       </View>
       <Text style={styles.authTitle}>Bienvenue sur Colib</Text>
       <Text style={styles.authText}>
@@ -481,7 +482,7 @@ function LoggedInProfile({
           ) : (
             <View style={styles.avatarCircle}>
               {uploading ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={Colors.dark.text} />
               ) : (
                 <Text style={styles.avatarText}>
                   {user.name.charAt(0).toUpperCase()}
@@ -490,7 +491,7 @@ function LoggedInProfile({
             </View>
           )}
           <View style={styles.cameraIcon}>
-            <Ionicons name="camera" size={14} color="#FFF" />
+            <Ionicons name="camera" size={14} color={Colors.dark.text} />
           </View>
         </TouchableOpacity>
         <Text style={styles.userName}>{user.name}</Text>
@@ -499,7 +500,7 @@ function LoggedInProfile({
             rating={user.averageRating}
             totalReviews={user.totalReviews}
             size={14}
-            color="#FDE68A"
+            color={Colors.dark.warning}
           />
         </View>
         <View style={styles.headerBadges}>
@@ -576,12 +577,7 @@ function LoggedInProfile({
                     keyboardType="email-address"
                     autoCapitalize="none"
                   />
-                  <TouchableOpacity
-                    style={styles.smallPrimaryButton}
-                    onPress={handleSendCode}
-                  >
-                    <Text style={styles.primaryButtonText}>Envoyer le code</Text>
-                  </TouchableOpacity>
+                  <ActionButton label="Envoyer le code" size="sm" style={styles.smallPrimaryButton} onPress={handleSendCode} />
                 </>
               ) : (
                 <>
@@ -597,20 +593,13 @@ function LoggedInProfile({
                     keyboardType="number-pad"
                     maxLength={6}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.smallPrimaryButton,
-                      verifying && styles.disabledButton,
-                    ]}
+                  <ActionButton
+                    label="Verifier"
+                    size="sm"
+                    style={styles.smallPrimaryButton}
+                    loading={verifying}
                     onPress={handleVerifyCode}
-                    disabled={verifying}
-                  >
-                    {verifying ? (
-                      <ActivityIndicator color="#FFF" size="small" />
-                    ) : (
-                      <Text style={styles.primaryButtonText}>Verifier</Text>
-                    )}
-                  </TouchableOpacity>
+                  />
                 </>
               )}
               <TouchableOpacity onPress={() => setShowEmailForm(false)}>
@@ -741,17 +730,13 @@ function LoggedInProfile({
             autoCapitalize="characters"
           />
 
-          <TouchableOpacity
-            style={[styles.smallPrimaryButton, submittingCompliance && styles.disabledButton]}
+          <ActionButton
+            label="Soumettre dossier transporteur"
+            size="sm"
+            style={styles.smallPrimaryButton}
+            loading={submittingCompliance}
             onPress={handleSubmitCompliance}
-            disabled={submittingCompliance}
-          >
-            {submittingCompliance ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Soumettre dossier transporteur</Text>
-            )}
-          </TouchableOpacity>
+          />
             </View>
           ) : null}
         </View>
@@ -804,12 +789,12 @@ function LoggedInProfile({
                     actions={[
                       {
                         label: "Modifier",
-                        color: "#4338CA",
+                        color: Colors.dark.primary,
                         onPress: () => handleEditTrip(String(trip._id)),
                       },
                       {
                         label: "Archiver",
-                        color: "#B91C1C",
+                        color: Colors.dark.error,
                         onPress: () => handleDeleteTrip(String(trip._id)),
                       },
                     ]}
@@ -852,12 +837,12 @@ function LoggedInProfile({
                     actions={[
                       {
                         label: "Modifier",
-                        color: "#4338CA",
+                        color: Colors.dark.primary,
                         onPress: () => handleEditParcel(String(parcel._id)),
                       },
                       {
                         label: "Archiver",
-                        color: "#B91C1C",
+                        color: Colors.dark.error,
                         onPress: () => handleDeleteParcel(String(parcel._id)),
                       },
                     ]}
@@ -885,7 +870,7 @@ function LoggedInProfile({
 
         {/* Deconnexion */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color={Colors.dark.error} />
           <Text style={styles.logoutText}>Se deconnecter</Text>
         </TouchableOpacity>
 
@@ -943,10 +928,9 @@ const styles = StyleSheet.create({
 
   // Inputs
   input: {
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surfaceMuted,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
@@ -978,10 +962,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
   },
   smallPrimaryButton: {
-    backgroundColor: Colors.dark.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
     marginBottom: 8,
   },
   disabledButton: {
@@ -1020,7 +1000,7 @@ const styles = StyleSheet.create({
   profileHeader: {
     alignItems: "center",
     paddingTop: 60,
-    paddingBottom: 20,
+    paddingBottom: 16,
     backgroundColor: Colors.dark.surface,
     position: "relative",
   },
@@ -1081,7 +1061,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderColor: Colors.dark.text,
   },
   avatarCircle: {
     width: 80,
@@ -1091,7 +1071,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#FFFFFF",
+    borderColor: Colors.dark.text,
   },
   avatarText: {
     fontSize: 30,
@@ -1109,7 +1089,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: Colors.dark.text,
   },
   userName: {
     fontSize: 20,
@@ -1170,16 +1150,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inlineFeedbackSuccess: {
-    borderColor: "#14532D",
-    backgroundColor: "#0E2C1D",
+    borderColor: Colors.dark.success,
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   inlineFeedbackError: {
-    borderColor: "#7F1D1D",
-    backgroundColor: "#3F1D21",
+    borderColor: Colors.dark.error,
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   inlineFeedbackInfo: {
-    borderColor: "#1E3A8A",
-    backgroundColor: "#1D2A47",
+    borderColor: Colors.dark.info,
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   inlineFeedbackText: {
     color: Colors.dark.text,
@@ -1188,16 +1168,15 @@ const styles = StyleSheet.create({
   },
   foldSection: {
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surface,
-    marginBottom: 12,
+    marginBottom: 10,
     overflow: "hidden",
   },
   foldHeader: {
-    minHeight: 44,
+    minHeight: 42,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1210,13 +1189,13 @@ const styles = StyleSheet.create({
   },
   foldBody: {
     paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingTop: 10,
+    paddingBottom: 2,
   },
 
   // Sections
   section: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1240,8 +1219,7 @@ const styles = StyleSheet.create({
   complianceCard: {
     backgroundColor: Colors.dark.surfaceMuted,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.primary,
+    borderWidth: 0,
     padding: 10,
     marginBottom: 12,
   },
@@ -1290,9 +1268,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#161D24",
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 0,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -1306,8 +1283,7 @@ const styles = StyleSheet.create({
   submenuButton: {
     marginBottom: 10,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     backgroundColor: Colors.dark.surfaceMuted,
     minHeight: 42,
     paddingHorizontal: 12,
@@ -1322,20 +1298,18 @@ const styles = StyleSheet.create({
   },
   submenuCard: {
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    backgroundColor: "#0F172A",
+    borderWidth: 0,
+    backgroundColor: Colors.dark.surfaceMuted,
     padding: 10,
   },
 
   // Reviews
   reviewCard: {
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surfaceMuted,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
   },
   reviewComment: {
     fontSize: 13,
@@ -1353,9 +1327,8 @@ const styles = StyleSheet.create({
 
   // Trips / Parcels
   notificationCard: {
-    backgroundColor: "#161D24",
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.surfaceMuted,
+    borderWidth: 0,
     borderRadius: 10,
     padding: 12,
     marginBottom: 8,
@@ -1394,12 +1367,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
   },
   readButton: {
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
+    borderWidth: 0,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: "#161D24",
+    backgroundColor: Colors.dark.surfaceMuted,
   },
   readButtonText: {
     color: Colors.dark.text,
@@ -1445,14 +1417,13 @@ const styles = StyleSheet.create({
   },
   inlineDeleteButton: {
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#402328",
+    borderWidth: 0,
+    backgroundColor: Colors.dark.surfaceMuted,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   inlineDeleteText: {
-    color: "#B91C1C",
+    color: Colors.dark.error,
     fontSize: 12,
     fontWeight: "700",
   },

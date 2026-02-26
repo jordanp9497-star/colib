@@ -1,10 +1,11 @@
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useQuery } from "convex/react";
-import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { useActiveTrip } from "@/context/ActiveTripContext";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import { Colors, Fonts } from "@/constants/theme";
 
 export default function ActiveTripMatchesScreen() {
@@ -45,13 +46,7 @@ export default function ActiveTripMatchesScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-      >
-        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Retour</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
       <Text style={styles.title}>Colis compatibles</Text>
       <Text style={styles.subtitle}>
@@ -63,17 +58,13 @@ export default function ActiveTripMatchesScreen() {
         keyExtractor={(item) => item.parcelId}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
+          <SurfaceCard style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Aucun colis compatible pour le moment</Text>
             <Text style={styles.emptyText}>Continuez votre trajet, on vous notifiera en cas de nouvelle opportunite.</Text>
-          </View>
+          </SurfaceCard>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => router.push(`/parcel/${item.parcelId}` as any)}
-          >
+          <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => router.push(`/parcel/${item.parcelId}` as any)}>
             <Text style={styles.pickup} numberOfLines={1}>
               Pickup: {item.pickupLabel}
             </Text>
@@ -98,20 +89,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 56,
   },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, fontFamily: Fonts.sansSemiBold, color: Colors.dark.textSecondary },
   title: { fontSize: 24, fontFamily: Fonts.displaySemiBold, color: Colors.dark.text },
   subtitle: {
     marginTop: 4,

@@ -7,6 +7,8 @@ import { api } from "@/convex/_generated/api";
 import { useUser } from "@/context/UserContext";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import type { MapPin } from "@/components/maps/CrossPlatformMap.types";
 import { decodePolyline } from "@/utils/polyline";
 import { Colors, Fonts } from "@/constants/theme";
@@ -151,7 +153,7 @@ export default function MapScreen() {
           latitude: parcel.originAddress.lat,
           longitude: parcel.originAddress.lng,
           title: `Colis: ${parcel.originAddress.city ?? parcel.origin}`,
-          color: "#F4B740",
+          color: Colors.dark.warning,
           kind: "parcel" as const,
         };
       }
@@ -282,13 +284,7 @@ export default function MapScreen() {
       scrollEventThrottle={16}
     >
       {router.canGoBack() ? (
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-        >
-          <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-          <Text style={styles.backButtonText}>Retour</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
       ) : null}
 
       <Text style={styles.title}>Carte de matching</Text>
@@ -300,7 +296,7 @@ export default function MapScreen() {
           <Text style={styles.legendText}>Trajet</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: "#F4B740" }]} />
+          <View style={[styles.legendDot, { backgroundColor: Colors.dark.warning }]} />
           <Text style={styles.legendText}>Pickup colis</Text>
         </View>
         <View style={styles.legendItem}>
@@ -370,7 +366,7 @@ export default function MapScreen() {
       </View>
 
       {selectedClusterParcels.length > 0 ? (
-        <View style={styles.bottomSheet}>
+        <SurfaceCard style={styles.bottomSheet}>
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Zone dense ({selectedClusterParcels.length} colis)</Text>
           <Text style={styles.sheetSubtitle}>Choisissez un colis de la zone pour ouvrir sa fiche.</Text>
@@ -385,7 +381,7 @@ export default function MapScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </SurfaceCard>
       ) : null}
 
       <View style={styles.overlayPanel}>
@@ -435,20 +431,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displaySemiBold,
     marginBottom: 10,
   },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    backgroundColor: Colors.dark.surface,
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   mapWrap: {
     marginTop: 12,
     marginBottom: 6,
@@ -536,9 +518,6 @@ const styles = StyleSheet.create({
   bottomSheet: {
     marginTop: 2,
     marginBottom: 10,
-    borderRadius: 14,
-    borderWidth: 0,
-    backgroundColor: Colors.dark.surface,
     padding: 12,
   },
   sheetHandle: {

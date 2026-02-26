@@ -2,10 +2,11 @@ import { useMemo, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import { DetourFilter } from "@/components/maps/DetourFilter";
 import { CrossPlatformMap } from "@/components/maps/CrossPlatformMap";
+import { BackButton } from "@/components/ui/back-button";
+import { SurfaceCard } from "@/components/ui/surface-card";
 import StarRating from "@/components/profile/StarRating";
 import { Colors, Fonts } from "@/constants/theme";
 
@@ -54,20 +55,20 @@ export default function ParcelMatchScreen() {
   const mapPins = useMemo(() => {
     const pins: { id: string; latitude: number; longitude: number; title: string; color: string }[] = [];
     if (parcel) {
-      pins.push({
-        id: `parcel-origin-${parcel._id}`,
-        latitude: parcel.originAddress.lat,
-        longitude: parcel.originAddress.lng,
-        title: "Depart colis",
-        color: "#DC2626",
-      });
+        pins.push({
+          id: `parcel-origin-${parcel._id}`,
+          latitude: parcel.originAddress.lat,
+          longitude: parcel.originAddress.lng,
+          title: "Depart colis",
+          color: Colors.dark.error,
+        });
       pins.push({
         id: `parcel-destination-${parcel._id}`,
         latitude: parcel.destinationAddress.lat,
-        longitude: parcel.destinationAddress.lng,
-        title: "Destination colis",
-        color: "#B91C1C",
-      });
+          longitude: parcel.destinationAddress.lng,
+          title: "Destination colis",
+          color: Colors.dark.error,
+        });
     }
 
     for (const match of sorted) {
@@ -78,7 +79,7 @@ export default function ParcelMatchScreen() {
         latitude: trip.originAddress.lat,
         longitude: trip.originAddress.lng,
         title: `Trajet ${trip.originAddress.city ?? trip.origin}`,
-        color: "#2563EB",
+        color: Colors.dark.primary,
       });
     }
 
@@ -94,7 +95,7 @@ export default function ParcelMatchScreen() {
           { latitude: parcel.originAddress.lat, longitude: parcel.originAddress.lng },
           { latitude: parcel.destinationAddress.lat, longitude: parcel.destinationAddress.lng },
         ],
-        color: "#B91C1C",
+        color: Colors.dark.error,
         width: 3,
       });
     }
@@ -104,7 +105,7 @@ export default function ParcelMatchScreen() {
   if (parcel === undefined || matches === undefined) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#4338CA" size="large" />
+        <ActivityIndicator color={Colors.dark.primary} size="large" />
       </View>
     );
   }
@@ -118,13 +119,7 @@ export default function ParcelMatchScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))}
-      >
-        <Ionicons name="arrow-back" size={16} color={Colors.dark.textSecondary} />
-        <Text style={styles.backButtonText}>Retour</Text>
-      </TouchableOpacity>
+      <BackButton onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)" as any))} />
 
       <Text style={styles.title}>Matches colis</Text>
       <Text style={styles.subtitle}>{`${parcel?.origin ?? ""} -> ${parcel?.destination ?? ""}`}</Text>
@@ -155,15 +150,15 @@ export default function ParcelMatchScreen() {
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
+          <SurfaceCard style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>Aucun match pour le moment</Text>
             <Text style={styles.emptyText}>
               Votre colis reste publie. Vous pouvez attendre de nouveaux trajets ou ajuster la date/les preferences.
             </Text>
-          </View>
+          </SurfaceCard>
         }
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <SurfaceCard style={styles.card}>
             {(() => {
               const trip = tripById.get(String(item.tripId));
               const carrierName = trip?.carrierProfile?.name ?? trip?.userName ?? "Transporteur";
@@ -189,7 +184,7 @@ export default function ParcelMatchScreen() {
                         rating={trip?.carrierProfile?.averageRating}
                         totalReviews={trip?.carrierProfile?.totalReviews ?? 0}
                         size={12}
-                        color="#FDE68A"
+                        color={Colors.dark.warning}
                       />
                     </View>
                   </View>
@@ -205,7 +200,7 @@ export default function ParcelMatchScreen() {
                 </>
               );
             })()}
-          </View>
+          </SurfaceCard>
         )}
       />
     </View>
@@ -217,20 +212,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, color: Colors.dark.text, fontFamily: Fonts.displaySemiBold },
   subtitle: { marginTop: 4, marginBottom: 12, fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
   sortRow: { flexDirection: "row", gap: 8, marginVertical: 12, flexWrap: "wrap" },
-  backButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 10,
-    backgroundColor: "#161D24",
-  },
-  backButtonText: { fontSize: 12, color: Colors.dark.textSecondary, fontFamily: Fonts.sansSemiBold },
   sortChip: {
     borderWidth: 1,
     borderColor: Colors.dark.border,
@@ -248,10 +229,6 @@ const styles = StyleSheet.create({
   },
   list: { paddingTop: 12, gap: 8, paddingBottom: 30 },
   card: {
-    backgroundColor: Colors.dark.surface,
-    borderColor: Colors.dark.border,
-    borderWidth: 1,
-    borderRadius: 12,
     padding: 12,
   },
   carrierRow: {
@@ -295,11 +272,7 @@ const styles = StyleSheet.create({
   price: { marginTop: 6, fontSize: 15, color: Colors.dark.primary, fontFamily: Fonts.sansSemiBold },
   emptyCard: {
     marginTop: 20,
-    borderRadius: 12,
     padding: 14,
-    backgroundColor: Colors.dark.surface,
-    borderWidth: 1,
-    borderColor: Colors.dark.border,
   },
   emptyTitle: { fontSize: 15, color: Colors.dark.text, fontFamily: Fonts.sansSemiBold },
   emptyText: { marginTop: 6, fontSize: 13, color: Colors.dark.textSecondary, fontFamily: Fonts.sans },
